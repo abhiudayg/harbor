@@ -38,6 +38,10 @@ public actor AgentRunner {
         tasks[id]
     }
 
+    public var allTasks: [AgentTask] {
+        tasks.values.sorted { $0.id.uuidString < $1.id.uuidString }
+    }
+
     public func stop(_ id: UUID) throws(AgentRunnerError) -> AgentTask {
         guard let task = tasks[id] else {
             throw AgentRunnerError.unknownTask(id)

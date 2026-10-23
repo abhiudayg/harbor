@@ -117,6 +117,39 @@ struct BrowserStoreTests {
         #expect(stored.spaceID == space.id)
     }
 
+    @Test("archiving a tab moves it out of the live set without closing it")
+    func archivesTabExplicitly() async throws {
+        let space = Space(name: "Research")
+        let store = BrowserStore(spaces: [space])
+        let tab = try await store.openTab(url: Self.example, title: "Example", in: space.id, at: Self.start)
+
+        try await store.archive(tabID: tab.id)
+
+        #expect(await store.tabs.first?.state == .archived)
+        #expect(await store.tabs.count == 1)
+    }
+
+    @Test("closing a tab removes it from the store")
+    func closesTab() async throws {
+        let space = Space(name: "Research")
+        let store = BrowserStore(spaces: [space])
+        let tab = try await store.openTab(url: Self.example, title: "Example", in: space.id, at: Self.start)
+
+        try await store.close(tabID: tab.id)
+
+        #expect(await store.tabs.isEmpty)
+    }
+
+    @Test("closing an unknown tab is rejected")
+    func rejectsCloseUnknown() async {
+        let store = BrowserStore()
+        let missing = UUID()
+
+        await #expect(throws: BrowserStoreError.unknownTab(missing)) {
+            try await store.close(tabID: missing)
+        }
+    }
+
     @Test("refuses to change an unknown tab")
     func rejectsUnknownTab() async {
         let store = BrowserStore()

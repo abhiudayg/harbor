@@ -54,6 +54,17 @@ public actor BrowserStore {
         try update(tabID) { $0.with(state: .hibernated) }
     }
 
+    public func archive(tabID: UUID) throws {
+        try update(tabID) { $0.with(state: .archived) }
+    }
+
+    public func close(tabID: UUID) throws {
+        guard tabs.contains(where: { $0.id == tabID }) else {
+            throw BrowserStoreError.unknownTab(tabID)
+        }
+        tabs = tabs.filter { $0.id != tabID }
+    }
+
     public func archiveStaleTabs(now: Date) -> [UUID] {
         let staleIDs = tabs
             .filter { tab in
