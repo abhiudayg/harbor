@@ -3,62 +3,162 @@ import SwiftUI
 
 struct SidebarView: View {
     let model: AppModel
+    @State private var query = ""
 
     var body: some View {
-        VStack(spacing: 0) {
+        VStack(alignment: .leading, spacing: 0) {
             ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    SpacesList(spaces: model.spaces)
-                    SidebarSectionHeader(title: "Pinned", count: String(pinnedTabs.count), hint: "⌘1–6")
-                    VStack(spacing: 2) {
-                        ForEach(Array(pinnedTabs.enumerated()), id: \.element.id) { index, tab in
-                            SidebarTabRow(tab: tab, shortcut: index < 6 ? "⌘\(index + 1)" : nil)
-                        }
-                    }
-                    SidebarSectionHeader(title: "Today (\(todayTabs.count))", trailingSymbol: "icloud.and.arrow.up")
-                    VStack(spacing: 2) {
-                        ForEach(todayTabs) { tab in
-                            SidebarTabRow(tab: tab)
-                        }
-                    }
-                    SidebarSectionHeader(title: "Tab Groups")
-                    ForEach(model.spaces.dropFirst(), id: \.id) { space in
-                        let titles = model.tabs.filter { $0.spaceID == space.id && $0.state != .archived }.map(\.title)
-                        if !titles.isEmpty {
-                            CollectionFolderRow(title: space.name, count: titles.count, children: titles)
-                        }
-                    }
+                VStack(alignment: .leading, spacing: 12) {
+                    SpacesRow(spaces: model.spaces)
+                    filterField
+                    pinnedSection
+                    todaySection
+                    tabGroupsSection
                     ArchiveRow(count: archivedCount)
                 }
                 .padding(.horizontal, 8)
-                .padding(.top, 10)
-                .padding(.bottom, 8)
+                .padding(.vertical, 8)
             }
             .scrollIndicators(.never)
-            ApprovalDock(status: runningStatus, request: model.pendingApprovals.first) { request, scope in
-                await model.approve(request, scope: scope)
-            } onDeny: { request in
-                await model.deny(request)
+            footer
+        }
+        .glassPanel()
+    }
+
+    private var pinnedSection: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            SectionHeader(title: "Pinned", trailing: "⌘1-6", trailingIsCode: true)
+            ForEach(Array(pinnedTabs.enumerated()), id: \.element.id) { index, tab in
+                PinnedRow(tab: tab, shortcut: index < 6 ? "⌘\(index + 1)" : nil)
             }
         }
     }
 
-    private var pinnedTabs: [SidebarTab] {
-        model.tabs
-            .filter { $0.isPinned && $0.state != .archived }
-            .map(SidebarTab.init(tab:))
+    private var todaySection: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            SectionHeader(title: "Today", trailing: "\(todayTabs.count) tabs", trailingIsCode: true)
+            ForEach(todayTabs) { tab in
+                TodayRow(tab: tab, isActive: tab.id == model.activeTabID)
+            }
+        }
+    }
+
+    private var tabGroupsSection: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            SectionHeader(title: "Workspaces", trailing: nil, trailingIsCode: false)
+            ForEach(groupSpaces, id: \.id) { space in
+                TabGroupRow(name: space.name, count: openCount(in: space))
+            }
+        }
+    }
+
+    private var footer: some View {
+        VStack(spacing: 8) {
+            statusChip
+            HStack {
+                Button {
+                    Task { await model.newTab() }
+                } label: {
+                    HStack(spacing: 6) {
+                        MaterialIcon("add_box", size: 16)
+                        Text("⌘ + T New Tab")
+                            .font(HarborTypography.text(size: 13, weight: .medium))
+                    }
+                    .foregroundStyle(HarborColor.onSurfaceVariant)
+                }
+                .buttonStyle(.plain)
+                Spacer()
+                IconButton(symbol: "download", help: "Downloads (not built yet)")
+                IconButton(symbol: "settings", help: "Settings (not built yet)")
+            }
+            .padding(.horizontal, 4)
+        }
+        .padding(.horizontal, 8)
+        .padding(.top, 8)
+        .padding(.bottom, 8)
+        .overlay(alignment: .top) {
+            Divider().overlay(HarborColor.outlineVariant)
+        }
+    }
+
+    private var statusChip: some View {
+        HStack(spacing: 8) {
+            HStack(spacing: 6) {
+                Circle()
+                    .fill(HarborColor.statusAmber)
+                    .frame(width: 8, height: 8)
+                Text(runningStatus)
+                    .font(HarborTypography.text(size: 11))
+                    .foregroundStyle(HarborColor.onSurface)
+                    .lineLimit(1)
+            }
+            Spacer(minLength: 4)
+            if !model.pendingApprovals.isEmpty {
+                Button {
+                    model.showInbox()
+                } label: {
+                    Text("Approval")
+                        .font(HarborTypography.text(size: 10, weight: .medium))
+                        .textCase(.uppercase)
+                        .foregroundStyle(HarborColor.statusAmber)
+                        .padding(.horizontal, 4)
+                        .padding(.vertical, 1)
+                        .background(HarborColor.amberBadgeFill, in: RoundedRectangle(cornerRadius: 4))
+                        .overlay(RoundedRectangle(cornerRadius: 4).stroke(HarborColor.amberBadgeBorder))
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(6)
+        .background(HarborColor.surface, in: RoundedRectangle(cornerRadius: 4))
+        .overlay(RoundedRectangle(cornerRadius: 4).stroke(HarborColor.outlineVariant))
+    }
+
+    private var filterField: some View {
+        HStack(spacing: 6) {
+            MaterialIcon("search", size: 12)
+                .foregroundStyle(HarborColor.outline)
+            TextField("Filter tabs & pages...", text: $query)
+                .textFieldStyle(.plain)
+                .font(HarborTypography.text(size: 12))
+                .foregroundStyle(HarborColor.onSurface)
+                .accessibilityIdentifier("sidebar-filter")
+        }
+        .padding(.horizontal, 8)
+        .frame(height: 28)
+        .background(HarborColor.surfaceLowest, in: RoundedRectangle(cornerRadius: 4))
+        .overlay(RoundedRectangle(cornerRadius: 4).stroke(HarborColor.outlineVariant))
+    }
+
+    private var pinnedTabs: [BrowserTab] {
+        openTabs.filter { $0.isPinned && matchesQuery($0) }
     }
 
     private var todayTabs: [SidebarTab] {
-        model.tabs
-            .filter { !$0.isPinned && $0.state != .archived }
-            .map(SidebarTab.init(tab:))
+        openTabs
+            .filter { !$0.isPinned && $0.spaceID == model.spaces.first?.id && matchesQuery($0) }
+            .map { SidebarTab(tab: $0) }
+    }
+
+    private var openTabs: [BrowserTab] {
+        model.tabs.filter { $0.state != .archived }
+    }
+
+    private func matchesQuery(_ tab: BrowserTab) -> Bool {
+        query.isEmpty || tab.title.localizedCaseInsensitiveContains(query)
+    }
+
+    private var groupSpaces: [Space] {
+        model.spaces.dropFirst().filter { openCount(in: $0) > 0 }
+    }
+
+    private func openCount(in space: Space) -> Int {
+        model.tabs.filter { $0.spaceID == space.id && $0.state != .archived }.count
     }
 
     private var runningStatus: String {
         let running = model.tasks.filter { $0.state == .running }.count
-        let awaiting = model.pendingApprovals.count
-        return "\(running) running · \(awaiting) awaiting Approval"
+        return "\(running) running · \(model.pendingApprovals.count) awaiting"
     }
 
     private var archivedCount: Int {
@@ -66,184 +166,165 @@ struct SidebarView: View {
     }
 }
 
-private struct SpacesList: View {
+private struct SpacesRow: View {
     let spaces: [Space]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack {
-                Text("SPACES")
-                    .font(HarborTypography.mono(size: 10, weight: .semibold))
-                    .tracking(1)
-                    .foregroundStyle(HarborColor.onSurfaceVariant.opacity(0.7))
-                Spacer()
-                Image(systemName: "plus")
-                    .font(.system(size: 11))
-                    .foregroundStyle(HarborColor.onSurfaceVariant)
-            }
-            .padding(.horizontal, 8)
+        HStack(spacing: 4) {
             ForEach(Array(spaces.enumerated()), id: \.element.id) { index, space in
-                HStack(spacing: 8) {
-                    Circle()
-                        .fill(index == 0 ? HarborColor.accentTeal : HarborColor.outlineVariant)
-                        .frame(width: 8, height: 8)
-                    Text(space.name)
-                        .font(HarborTypography.chrome(size: 12, weight: index == 0 ? .semibold : .regular))
-                        .foregroundStyle(index == 0 ? HarborColor.primary : HarborColor.onSurfaceVariant)
-                    Spacer()
-                    Text("⌘\(index + 1)")
-                        .font(HarborTypography.mono(size: 9))
-                        .foregroundStyle(HarborColor.outline)
-                }
-                .padding(.horizontal, 8)
-                .frame(height: 26)
+                SpaceButton(name: space.name, isSelected: index == 0)
             }
+            Spacer(minLength: 4)
+            MaterialIcon("add", size: 13)
+                .foregroundStyle(HarborColor.onSurfaceVariant)
+                .frame(width: 24, height: 24)
+        }
+        .padding(.bottom, 6)
+        .overlay(alignment: .bottom) {
+            Divider().overlay(HarborColor.outlineVariant)
         }
     }
 }
 
-private struct SpaceSwitcherCard: View {
-    let spaceName: String
+private struct SpaceButton: View {
+    let name: String
+    let isSelected: Bool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                HStack(spacing: 6) {
-                    Circle()
-                        .fill(HarborColor.accentTeal)
-                        .frame(width: 8, height: 8)
-                    Text(spaceName)
-                        .font(HarborTypography.chrome(size: 13, weight: .semibold))
-                        .foregroundStyle(HarborColor.onSurface)
-                }
-                Spacer()
-                Text("⌘1")
-                    .font(HarborTypography.mono(size: 10))
-                    .foregroundStyle(HarborColor.onSurfaceVariant.opacity(0.7))
-            }
-            HStack(spacing: 6) {
-                SpaceChip(title: spaceName, selected: true)
-                Image(systemName: "archivebox")
-                    .font(.system(size: 11))
-                    .foregroundStyle(HarborColor.onSurfaceVariant)
-            }
+        HStack(spacing: 6) {
+            Circle()
+                .fill(isSelected ? HarborColor.primaryContainer : HarborColor.outline)
+                .frame(width: 8, height: 8)
+            Text(name)
+                .font(HarborTypography.text(size: 13, weight: isSelected ? .medium : .regular))
+                .foregroundStyle(isSelected ? HarborColor.onSurface : HarborColor.onSurfaceVariant)
         }
-        .padding(8)
-        .background(HarborColor.surfaceLowest.opacity(0.8), in: RoundedRectangle(cornerRadius: 8))
-        .overlay(RoundedRectangle(cornerRadius: 8).stroke(HarborColor.outlineVariant.opacity(0.4)))
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(isSelected ? HarborColor.surfaceContainer : .clear, in: RoundedRectangle(cornerRadius: 4))
+        .overlay(RoundedRectangle(cornerRadius: 4).stroke(isSelected ? HarborColor.outlineVariant : .clear))
     }
 }
 
-private struct SpaceChip: View {
+private struct SectionHeader: View {
     let title: String
-    let selected: Bool
-
-    var body: some View {
-        Text(title)
-            .font(HarborTypography.chrome(size: 10, weight: .medium))
-            .foregroundStyle(selected ? Color.white : HarborColor.onSurfaceVariant)
-            .padding(.horizontal, 6)
-            .frame(height: 20)
-            .background(selected ? HarborColor.accentTeal : .clear, in: RoundedRectangle(cornerRadius: 4))
-    }
-}
-
-private struct SidebarSectionHeader: View {
-    let title: String
-    var count: String?
-    var trailingSymbol: String?
-    var hint: String?
+    let trailing: String?
+    let trailingIsCode: Bool
 
     var body: some View {
         HStack {
             Text(title.uppercased())
-                .font(HarborTypography.mono(size: 10, weight: .semibold))
-                .tracking(1)
-                .foregroundStyle(HarborColor.onSurfaceVariant.opacity(0.7))
-            if let hint {
-                Text(hint)
-                    .font(HarborTypography.mono(size: 9))
-                    .foregroundStyle(HarborColor.outline)
-            }
+                .font(HarborTypography.text(size: 11, weight: .medium))
+                .tracking(0.55)
+                .foregroundStyle(HarborColor.outline)
             Spacer()
-            if let count {
-                Text(count)
-                    .font(HarborTypography.mono(size: 10))
-                    .foregroundStyle(HarborColor.onSurfaceVariant.opacity(0.5))
-            }
-            if let trailingSymbol {
-                Image(systemName: trailingSymbol)
-                    .font(.system(size: 12))
-                    .foregroundStyle(HarborColor.onSurfaceVariant.opacity(0.5))
+            if let trailing {
+                Text(trailing)
+                    .font(HarborTypography.text(size: 11))
+                    .foregroundStyle(trailingIsCode ? HarborColor.onSurfaceVariant : HarborColor.outline)
             }
         }
         .padding(.horizontal, 8)
+        .padding(.vertical, 4)
     }
 }
 
-private struct SidebarTabRow: View {
-    let tab: SidebarTab
-    var shortcut: String?
+private struct PinnedRow: View {
+    let tab: BrowserTab
+    let shortcut: String?
 
     var body: some View {
         HStack(spacing: 8) {
-            Image(systemName: tab.symbol)
-                .font(.system(size: 12))
-                .foregroundStyle(tab.tint)
-                .frame(width: 16)
+            MaterialIcon(SidebarTab.symbol(for: tab.title))
+                .font(.system(size: 13))
+                .foregroundStyle(HarborColor.outline)
+                .frame(width: 15)
             Text(tab.title)
-                .font(HarborTypography.chrome(size: 12, weight: tab.isActive ? .semibold : .regular))
-                .foregroundStyle(tab.isActive ? HarborColor.primary : HarborColor.onSurfaceVariant)
+                .font(HarborTypography.text(size: 13))
+                .foregroundStyle(HarborColor.onSurfaceVariant)
                 .lineLimit(1)
             Spacer(minLength: 4)
             if let shortcut {
                 Text(shortcut)
-                    .font(HarborTypography.mono(size: 9))
+                    .font(HarborTypography.text(size: 11))
                     .foregroundStyle(HarborColor.outline)
+                    .padding(.horizontal, 4)
+                    .background(HarborColor.surfaceContainer, in: RoundedRectangle(cornerRadius: 4))
+                    .overlay(RoundedRectangle(cornerRadius: 4).stroke(HarborColor.outlineVariant))
             }
         }
         .padding(.horizontal, 8)
-        .frame(height: 32)
-        .background(
-            tab.isActive ? HarborColor.surfaceLowest : .clear,
-            in: RoundedRectangle(cornerRadius: 7)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 7)
-                .stroke(tab.isActive ? HarborColor.outlineVariant.opacity(0.4) : .clear)
-        )
+        .padding(.vertical, 6)
     }
 }
 
-private struct CollectionFolderRow: View {
-    let title: String
-    let count: Int
-    let children: [String]
+private struct TodayRow: View {
+    let tab: SidebarTab
+    let isActive: Bool
+    @State private var isHovered = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            HStack(spacing: 6) {
-                Image(systemName: children.isEmpty ? "chevron.right" : "chevron.down")
-                    .font(.system(size: 10))
-                Text(title)
-                    .font(HarborTypography.chrome(size: 12, weight: .medium))
-                    .lineLimit(1)
-                Spacer()
-                Text(String(count))
-                    .font(HarborTypography.mono(size: 9))
+        HStack(spacing: 8) {
+            if isActive {
+                Circle()
+                    .fill(HarborColor.primaryContainer)
+                    .frame(width: 6, height: 6)
+                    .frame(width: 15)
+            } else {
+                MaterialIcon(tab.symbol)
+                    .font(.system(size: 13))
                     .foregroundStyle(HarborColor.outline)
+                    .frame(width: 15)
             }
-            .foregroundStyle(HarborColor.onSurface)
-            .padding(.horizontal, 8)
-            .frame(height: 28)
-            ForEach(children, id: \.self) { child in
-                Text(child)
-                    .font(HarborTypography.chrome(size: 12))
-                    .foregroundStyle(HarborColor.onSurfaceVariant)
-                    .padding(.leading, 26)
-                    .frame(height: 24, alignment: .leading)
+            Text(tab.title)
+                .font(HarborTypography.text(size: 13, weight: isActive ? .medium : .regular))
+                .foregroundStyle(isActive ? HarborColor.onSurface : HarborColor.onSurfaceVariant)
+                .lineLimit(1)
+            Spacer(minLength: 4)
+            MaterialIcon("close", size: 10)
+                .foregroundStyle(HarborColor.outline)
+                .opacity(isActive || isHovered ? 1 : 0)
+        }
+        .padding(.leading, 8)
+        .padding(.trailing, 8)
+        .padding(.vertical, 6)
+        .background(isActive ? HarborColor.surfaceContainer : .clear, in: RoundedRectangle(cornerRadius: 4))
+        .overlay(alignment: .leading) {
+            if isActive {
+                Rectangle()
+                    .fill(HarborColor.primary)
+                    .frame(width: 2)
             }
         }
+        .onHover { isHovered = $0 }
+    }
+}
+
+private struct TabGroupRow: View {
+    let name: String
+    let count: Int
+
+    var body: some View {
+        HStack {
+            HStack(spacing: 8) {
+                MaterialIcon("chevron_right", size: 10)
+                    .foregroundStyle(HarborColor.outline)
+                MaterialIcon("folder", size: 13)
+                    .foregroundStyle(HarborColor.outline)
+                Text(name)
+                    .font(HarborTypography.text(size: 13))
+                    .lineLimit(1)
+            }
+            .foregroundStyle(HarborColor.onSurfaceVariant)
+            Spacer()
+            Text("\(count)")
+                .font(HarborTypography.text(size: 11))
+                .foregroundStyle(HarborColor.outline)
+                .padding(.horizontal, 4)
+                .background(HarborColor.surfaceContainer, in: RoundedRectangle(cornerRadius: 4))
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 6)
     }
 }
 
@@ -251,112 +332,38 @@ private struct ArchiveRow: View {
     let count: Int
 
     var body: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "archivebox")
-                .font(.system(size: 12))
-            Text("Archive")
-                .font(HarborTypography.chrome(size: 12))
+        HStack {
+            HStack(spacing: 8) {
+                MaterialIcon("chevron_right", size: 10)
+                    .foregroundStyle(HarborColor.outline)
+                MaterialIcon("inventory_2", size: 13)
+                    .foregroundStyle(HarborColor.outline)
+                Text("Archive")
+                    .font(HarborTypography.text(size: 13))
+            }
+            .foregroundStyle(HarborColor.onSurfaceVariant)
             Spacer()
-            Text(String(count))
-                .font(HarborTypography.mono(size: 10))
-                .foregroundStyle(HarborColor.onSurfaceVariant.opacity(0.8))
-            Text("⌘E")
-                .font(HarborTypography.mono(size: 9))
+            Text("\(count)")
+                .font(HarborTypography.text(size: 11))
                 .foregroundStyle(HarborColor.outline)
+                .padding(.horizontal, 6)
+                .background(HarborColor.surfaceContainer, in: RoundedRectangle(cornerRadius: 4))
         }
-        .foregroundStyle(HarborColor.onSurfaceVariant)
         .padding(.horizontal, 8)
-        .frame(height: 32)
+        .padding(.vertical, 6)
     }
 }
 
-private struct ApprovalDock: View {
-    let status: String
-    let request: ApprovalRequest?
-    let onApprove: (ApprovalRequest, ApprovalScope) async -> Void
-    let onDeny: (ApprovalRequest) async -> Void
+private struct IconButton: View {
+    let symbol: String
+    let help: String
 
     var body: some View {
-        VStack(spacing: 8) {
-            Text(status)
-                .font(HarborTypography.mono(size: 10))
-                .foregroundStyle(HarborColor.onSurfaceVariant)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 4)
-            if let request {
-                approvalCard(request)
-            } else {
-                Text("No approvals pending")
-                    .font(HarborTypography.chrome(size: 11))
-                    .foregroundStyle(HarborColor.onSurfaceVariant)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(8)
-                    .background(HarborColor.surfaceLowest, in: RoundedRectangle(cornerRadius: 8))
-                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(HarborColor.hairline))
-            }
-            HStack {
-                Image(systemName: "arrow.down.circle")
-                    .font(.system(size: 14))
-                Spacer()
-                Text("⌘T New Tab")
-                    .font(HarborTypography.chrome(size: 11, weight: .medium))
-            }
+        MaterialIcon(symbol)
+            .font(.system(size: 17))
             .foregroundStyle(HarborColor.onSurfaceVariant)
-            .padding(.horizontal, 4)
-        }
-        .padding(8)
-        .background(HarborColor.surfaceLow)
-        .overlay(alignment: .top) {
-            Divider().overlay(HarborColor.outlineVariant.opacity(0.3))
-        }
-    }
-
-    private func approvalCard(_ request: ApprovalRequest) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                HStack(spacing: 6) {
-                    Circle()
-                        .fill(HarborColor.approvalDot)
-                        .frame(width: 8, height: 8)
-                    Text("Awaiting Approval")
-                        .font(HarborTypography.chrome(size: 11, weight: .semibold))
-                        .foregroundStyle(HarborColor.approvalText)
-                }
-                Spacer()
-            }
-            Text("\(request.action.rawValue) on \(request.site)")
-                .font(HarborTypography.chrome(size: 11, weight: .medium))
-                .foregroundStyle(HarborColor.onSurfaceVariant)
-                .lineLimit(1)
-            HStack(spacing: 6) {
-                Button {
-                    Task { await onApprove(request, .once) }
-                } label: {
-                    Text("Approve once")
-                        .font(HarborTypography.chrome(size: 10, weight: .medium))
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 24)
-                        .background(HarborColor.approvalAction, in: RoundedRectangle(cornerRadius: 5))
-                }
-                .buttonStyle(.plain)
-                Button {
-                    Task { await onDeny(request) }
-                } label: {
-                    Text("Deny")
-                        .font(HarborTypography.chrome(size: 10, weight: .medium))
-                        .foregroundStyle(HarborColor.approvalText)
-                        .padding(.horizontal, 8)
-                        .frame(height: 24)
-                        .background(HarborColor.surfaceLowest, in: RoundedRectangle(cornerRadius: 5))
-                        .overlay(RoundedRectangle(cornerRadius: 5).stroke(HarborColor.approvalBorder))
-                }
-                .buttonStyle(.plain)
-            }
-        }
-        .padding(8)
-        .background(HarborColor.approvalFill, in: RoundedRectangle(cornerRadius: 8))
-        .overlay(RoundedRectangle(cornerRadius: 8).stroke(HarborColor.approvalBorder))
+            .frame(width: 28, height: 28)
+            .help(help)
     }
 }
 
@@ -364,29 +371,24 @@ struct SidebarTab: Identifiable {
     let id: UUID
     let title: String
     let symbol: String
-    let tint: Color
-    let isActive: Bool
 
     static func symbol(for title: String) -> String {
         let known: [(String, String)] = [
-            ("Figma", "pencil.and.outline"),
-            ("Linear", "checkmark.circle"),
-            ("GitHub", "chevron.left.forwardslash.chevron.right"),
-            ("Notion", "doc.text"),
-            ("Readwise", "books.vertical"),
-            ("Claude", "brain"),
-            ("Paxos", "doc.plaintext"),
-            ("HN", "bubble.left.and.bubble.right"),
-            ("PostgreSQL", "cylinder"),
+            ("ArXiv", "folder"),
+            ("Kernel", "menu_book"),
+            ("Figma", "code"),
+            ("Linear", "memory"),
+            ("Postgres", "archive"),
+            ("Stripe", "bookmark"),
+            ("Distributed", "hub"),
+            ("Typography", "text_fields"),
         ]
-        return known.first { title.contains($0.0) }?.1 ?? "globe"
+        return known.first { title.contains($0.0) }?.1 ?? "tab"
     }
 
     init(tab: BrowserTab) {
         id = tab.id
         title = tab.title
         symbol = Self.symbol(for: tab.title)
-        tint = HarborColor.outline
-        isActive = false
     }
 }

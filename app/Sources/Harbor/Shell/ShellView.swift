@@ -11,26 +11,26 @@ struct ShellView: View {
             let sidebarVisible = ShellLayout.sidebarVisible(requested: sidebarRequested, width: width)
             VStack(spacing: 0) {
                 ChromeHeaderView(
-                    windowWidth: width,
-                    sidebarVisible: sidebarVisible,
                     toggleSidebar: { sidebarRequested.toggle() },
                     openCommandBar: { model.isCommandBarPresented = true },
                     toggleAssistant: { model.isAssistantPresented.toggle() }
                 )
                 Divider()
-                    .overlay(HarborColor.outlineVariant.opacity(0.3))
+                    .overlay(HarborColor.outlineVariant)
                 HStack(spacing: 0) {
                     if sidebarVisible {
                         SidebarView(model: model)
-                            .frame(width: 260)
-                            .background(HarborColor.surfaceLow)
+                            .frame(width: 270)
                         Divider()
-                            .overlay(HarborColor.outlineVariant.opacity(0.3))
+                            .overlay(HarborColor.outlineVariant)
                     }
                     content(companionVisible: ShellLayout.companionVisible(width: width))
                 }
             }
-            .background(HarborColor.paper)
+            .background(NatureBackground())
+            .ignoresSafeArea()
+            .blur(radius: model.isCommandBarPresented ? 6 : 0)
+            .background(WindowChromeConfigurator())
             .overlay {
                 if model.isCommandBarPresented {
                     CommandBarView(model: model)
@@ -40,6 +40,9 @@ struct ShellView: View {
         }
         .task {
             await model.start()
+        }
+        .sheet(isPresented: $model.isDiagnosticsPresented) {
+            TabDiagnosticsView(model: model)
         }
         .sheet(isPresented: $model.isClientsPresented) {
             ClientsSheetView(model: model)

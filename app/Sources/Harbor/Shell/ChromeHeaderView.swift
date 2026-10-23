@@ -1,161 +1,135 @@
 import SwiftUI
 
 struct ChromeHeaderView: View {
-    static let height: CGFloat = 48
-    static let trafficLightInset: CGFloat = 78
-    static let omnibarMaxWidth: CGFloat = 560
-    static let compactBelowWidth: CGFloat = 1200
+    static let height: CGFloat = 44
+    static let omnibarMaxWidth: CGFloat = 672
 
-    let windowWidth: CGFloat
-    let sidebarVisible: Bool
     let toggleSidebar: () -> Void
     let openCommandBar: () -> Void
     let toggleAssistant: () -> Void
 
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 0) {
             navigationCluster
-                .padding(.leading, Self.trafficLightInset)
-            Spacer(minLength: 8)
+                .fixedSize()
             omnibar
                 .frame(maxWidth: Self.omnibarMaxWidth)
-            Spacer(minLength: 8)
+                .padding(.horizontal, 16)
+                .frame(maxWidth: .infinity)
             trailingCluster
         }
         .padding(.horizontal, 12)
         .frame(height: Self.height)
-        .background(HarborColor.surfaceLow)
+        .glassPanel()
     }
 
-    private var isCompact: Bool { windowWidth < Self.compactBelowWidth }
-
     private var navigationCluster: some View {
-        HStack(spacing: 2) {
-            ChromeIconButton(symbol: "chevron.backward", help: "Back (⌘[)")
-            ChromeIconButton(symbol: "chevron.forward", help: "Forward (⌘])", muted: true)
-            ChromeIconButton(symbol: "arrow.clockwise", help: "Reload (⌘R)")
-            ChromeIconButton(
-                symbol: "sidebar.left",
-                help: "Toggle Sidebar (⌘S)",
-                highlighted: sidebarVisible,
-                action: toggleSidebar
-            )
+        HStack(spacing: 4) {
+            TrafficLights()
+                .padding(.trailing, 12)
+            ChromeIconButton(symbol: "arrow_back", help: "Back (⌘[)", action: nil)
+            ChromeIconButton(symbol: "arrow_forward", help: "Forward (⌘])", action: nil)
+            ChromeIconButton(symbol: "refresh", help: "Reload (⌘R)", action: nil)
+            HStack(spacing: 6) {
+                MaterialIcon("anchor", size: 18)
+                    .foregroundStyle(HarborColor.primary)
+                Text("Harbor")
+                    .font(HarborTypography.headline(size: 15, weight: .semibold))
+                    .tracking(-0.075)
+                    .foregroundStyle(HarborColor.onSurface)
+                Text("Zen")
+                    .font(HarborTypography.text(size: 10, weight: .medium))
+                    .tracking(1)
+                    .textCase(.uppercase)
+                    .foregroundStyle(HarborColor.primary.opacity(0.7))
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(HarborColor.primary.opacity(0.05), in: Capsule())
+                    .overlay(Capsule().stroke(HarborColor.primary.opacity(0.1)))
+            }
+            .padding(.leading, 8)
         }
     }
 
     private var omnibar: some View {
         HStack(spacing: 8) {
-            Image(systemName: "lock.fill")
-                .font(.system(size: 10))
-                .foregroundStyle(HarborColor.primary)
-            Text(addressText)
-                .font(HarborTypography.mono(size: 12))
+            MaterialIcon("lock", size: 12)
+                .foregroundStyle(HarborColor.onSurfaceVariant)
+            Text("harbor://reading/the-architecture-of-quiet-interfaces")
+                .font(HarborTypography.text(size: 11))
                 .foregroundStyle(HarborColor.onSurface)
                 .lineLimit(1)
-                .truncationMode(.tail)
             Spacer(minLength: 4)
-            assistantTrigger
             Text("⌘K")
-                .font(HarborTypography.mono(size: 10))
-                .foregroundStyle(HarborColor.textSecondary)
+                .font(HarborTypography.text(size: 11))
+                .foregroundStyle(HarborColor.outline)
                 .padding(.horizontal, 6)
-                .frame(height: 18)
-                .background(HarborColor.paper, in: RoundedRectangle(cornerRadius: 5))
-                .overlay(RoundedRectangle(cornerRadius: 5).stroke(HarborColor.hairline))
+                .padding(.vertical, 2)
+                .background(HarborColor.surfaceContainer, in: RoundedRectangle(cornerRadius: 4))
+                .overlay(RoundedRectangle(cornerRadius: 4).stroke(HarborColor.outlineVariant))
+            Button(action: toggleAssistant) {
+                HStack(spacing: 4) {
+                    MaterialIcon("auto_awesome", size: 12)
+                        .foregroundStyle(HarborColor.primary)
+                    Text("Ask")
+                        .font(HarborTypography.text(size: 11, weight: .medium))
+                }
+                .foregroundStyle(.white)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 2)
+                .background(HarborColor.primary, in: RoundedRectangle(cornerRadius: 4))
+            }
+            .buttonStyle(.plain)
+            .help("Ask Harbor")
         }
-        .padding(.horizontal, 10)
+        .padding(.horizontal, 12)
         .frame(height: 32)
-        .background(HarborColor.surfaceLowest, in: RoundedRectangle(cornerRadius: 8))
-        .overlay(RoundedRectangle(cornerRadius: 8).stroke(HarborColor.hairline))
+        .background(HarborColor.surfaceContainerLow, in: RoundedRectangle(cornerRadius: 4))
+        .overlay(RoundedRectangle(cornerRadius: 4).stroke(HarborColor.outlineVariant))
         .contentShape(Rectangle())
         .onTapGesture(perform: openCommandBar)
         .accessibilityIdentifier("omnibar")
     }
 
-    private var addressText: AttributedString {
-        var prefix = AttributedString("harbor://")
-        prefix.foregroundColor = HarborColor.onSurfaceVariant.opacity(0.6)
-        var page = AttributedString("reading")
-        page.foregroundColor = HarborColor.accentTeal
-        var path = AttributedString("/cognitive-ergonomics")
-        path.foregroundColor = HarborColor.onSurface
-        return prefix + page + path
-    }
-
-    private var assistantTrigger: some View {
-        HStack(spacing: 4) {
-            Image(systemName: "sparkles")
-                .font(.system(size: 10))
-            Text("Assistant")
-                .font(HarborTypography.chrome(size: 11, weight: .medium))
-        }
-        .foregroundStyle(HarborColor.primary)
-        .padding(.horizontal, 6)
-        .padding(.vertical, 2)
-        .background(HarborColor.surfaceLow, in: RoundedRectangle(cornerRadius: 5))
-        .contentShape(Rectangle())
-        .onTapGesture(perform: toggleAssistant)
-        .overlay(RoundedRectangle(cornerRadius: 5).stroke(HarborColor.outlineVariant.opacity(0.3)))
-    }
-
     private var trailingCluster: some View {
-        HStack(spacing: 6) {
-            splitViewControl
-            ChromeIconButton(symbol: "square.grid.2x2", help: "Tab Overview (⌘⇧A)")
-            ChromeIconButton(symbol: "book", help: "Reader Mode (⌘⇧R)", highlighted: true)
-            profilePill
-        }
-        .foregroundStyle(HarborColor.onSurfaceVariant)
-    }
-
-    private var splitViewControl: some View {
         HStack(spacing: 4) {
-            Image(systemName: "rectangle.split.2x1")
-                .font(.system(size: 13))
-            if !isCompact {
-                Text("65 / 35")
-                    .font(HarborTypography.chrome(size: 11, weight: .medium))
-            }
+            ChromeIconButton(symbol: "menu_book", help: "Reader Mode", tint: HarborColor.primary, highlighted: true, action: nil)
+            ChromeIconButton(symbol: "view_sidebar", help: "Toggle Sidebar (⌘S)", action: toggleSidebar)
+            ChromeIconButton(symbol: "download", help: "Downloads (not built yet)", action: nil)
+            ChromeIconButton(symbol: "auto_awesome", help: "AI Companion", action: toggleAssistant)
+            ChromeIconButton(symbol: "tune", help: "Settings (not built yet)", action: nil)
+            Rectangle()
+                .fill(HarborColor.outlineVariant)
+                .frame(width: 1, height: 16)
+                .padding(.horizontal, 4)
+            Text("EV")
+                .font(HarborTypography.text(size: 11, weight: .semibold))
+                .foregroundStyle(HarborColor.onPrimaryContainer)
+                .frame(width: 24, height: 24)
+                .background(HarborColor.primaryContainer, in: Circle())
         }
-        .foregroundStyle(HarborColor.primary)
-        .padding(.horizontal, 8)
-        .frame(height: 28)
-        .background(HarborColor.primary.opacity(0.10), in: RoundedRectangle(cornerRadius: 6))
-        .overlay(RoundedRectangle(cornerRadius: 6).stroke(HarborColor.primary.opacity(0.20)))
-        .help("Split Pane View")
-    }
-
-    private var profilePill: some View {
-        Text("EV")
-            .font(HarborTypography.mono(size: 9, weight: .semibold))
-            .foregroundStyle(HarborColor.onPrimaryContainer)
-            .frame(width: 20, height: 20)
-            .background(HarborColor.primaryContainer, in: Circle())
-            .padding(.horizontal, 4)
     }
 }
 
 private struct ChromeIconButton: View {
     let symbol: String
     let help: String
-    var muted = false
+    var tint: Color = HarborColor.onSurfaceVariant
     var highlighted = false
-    var action: () -> Void = {}
+    let action: (() -> Void)?
 
     var body: some View {
-        Button(action: action) {
-            Image(systemName: symbol)
-                .font(.system(size: 13))
+        Button {
+            action?()
+        } label: {
+            MaterialIcon(symbol)
+                .font(.system(size: 16))
+                .foregroundStyle(tint)
                 .frame(width: 28, height: 28)
-                .foregroundStyle(foreground)
-                .background(highlighted ? HarborColor.surfaceContainerHigh : .clear, in: RoundedRectangle(cornerRadius: 6))
+                .background(highlighted ? HarborColor.surfaceContainerHigh : .clear, in: RoundedRectangle(cornerRadius: 4))
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .help(help)
-    }
-
-    private var foreground: Color {
-        if highlighted { return HarborColor.primary }
-        return muted ? HarborColor.onSurfaceVariant.opacity(0.4) : HarborColor.onSurfaceVariant
     }
 }

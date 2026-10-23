@@ -18,6 +18,9 @@ final class AppModel {
     var isInboxPresented = false
     var isClientsPresented = false
     var isAssistantPresented = false
+    var isDiagnosticsPresented = false
+    private(set) var activeTabID: UUID?
+    private static let readingTabTitle = "Cognitive Ergonomics & Screen Restraint"
 
     private let store: BrowserStore
     private let approvals: ApprovalService
@@ -51,10 +54,6 @@ final class AppModel {
 
     var spaceNames: [UUID: String] {
         Dictionary(uniqueKeysWithValues: spaces.map { ($0.id, $0.name) })
-    }
-
-    var activeSpaceName: String {
-        spaces.first?.name ?? "Harbor"
     }
 
     func start() async {
@@ -111,11 +110,13 @@ final class AppModel {
     }
 
     func deduplicate(_ tabs: [BrowserTab]) async {
-        var seen = Set<String>()
-        for tab in tabs {
-            if seen.insert(tab.url.absoluteString).inserted {
-                continue
+        let keepers = Dictionary(grouping: tabs, by: \.url.absoluteString)
+            .values
+            .compactMap { copies in
+                copies.max { ($0.isPinned ? 1 : 0, $0.lastActivatedAt) < ($1.isPinned ? 1 : 0, $1.lastActivatedAt) }
             }
+        let keeperIDs = Set(keepers.map(\.id))
+        for tab in tabs where !keeperIDs.contains(tab.id) {
             try? await store.close(tabID: tab.id)
         }
         await refresh()
@@ -151,6 +152,16 @@ final class AppModel {
         await refresh()
     }
 
+    func hibernate(_ tab: BrowserTab) async {
+        try? await store.hibernate(tabID: tab.id)
+        await refresh()
+    }
+
+    func activateTab(_ id: UUID) {
+        activeTabID = id
+        isCommandBarPresented = false
+    }
+
     func showTriage() {
         isInboxPresented = false
         isTriagePresented = true
@@ -165,8 +176,24 @@ final class AppModel {
         isInboxPresented = true
     }
 
-    func archiveStale() async {
-        _ = await store.archiveStaleTabs(now: Date())
+    func archive(_ tabs: [BrowserTab]) async {
+        for tab in tabs {
+            try? await store.archive(tabID: tab.id)
+        }
+        await refresh()
+    }
+
+    func close(_ tabs: [BrowserTab]) async {
+        for tab in tabs {
+            try? await store.close(tabID: tab.id)
+        }
+        await refresh()
+    }
+
+    func consolidate(_ tabs: [BrowserTab], into spaceID: UUID) async {
+        for tab in tabs where tab.spaceID != spaceID && tab.state != .archived {
+            try? await store.move(tabID: tab.id, to: spaceID)
+        }
         await refresh()
     }
 
@@ -193,43 +220,59 @@ final class AppModel {
     }
 
 
+    func newTab() async {
+        guard let space = spaces.first, let url = URL(string: "about:blank") else {
+            return
+        }
+        _ = try? await store.openTab(url: url, title: "New Tab", in: space.id, at: Date())
+        await refresh()
+    }
+
     private func seedWorkspace() async {
         guard let research = try? await store.createSpace(named: "Research"),
               let systems = try? await store.createSpace(named: "Systems")
         else {
             return
         }
+        let now = Date()
         let pinned: [(String, String)] = [
-            ("ArXiv: LLM Memory", "https://arxiv.org/abs/2402.19"),
             ("Kernel RFC #412", "https://lwn.net/Articles/412"),
-            ("Figma Design Tokens", "https://figma.com/file/tokens"),
-            ("Linear Core Backlog", "https://linear.app/harbor/core"),
             ("Postgres Indexing", "https://postgresql.org/docs/indexes"),
             ("Stripe API Reference", "https://stripe.com/docs/api"),
+            ("Harbor Design System v3 — Components Library", "https://figma.com/file/harbor-ui"),
+            ("ArXiv: LLM Memory", "https://arxiv.org/abs/2402.19"),
+            ("Linear Core Backlog", "https://linear.app/harbor/core"),
         ]
         let today: [(String, String)] = [
             ("Cognitive Ergonomics & Screen Restraint", "https://harbor.local/reading/cognitive-ergonomics"),
-            ("Distributed Consensus Protocols", "https://example.com/consensus"),
-            ("Typography in Digital Tools", "https://example.com/typography"),
+            ("Distributed Consensus Protocols in Asynchronous Networks — arXiv:2403.1189", "https://arxiv.org/abs/2403.1189"),
+            ("Harbor Design System v3 — Components Library (Copy 2)", "https://figma.com/file/harbor-ui"),
+        ]
+        let systemsTabs: [(String, String)] = [
+            ("ENG-8022: SQLite WASM synchronization edge case during rapid tab closures", "https://linear.app/harbor/issue/8022"),
+            ("Datadog APM — Live Trace Stream (Production US-East Cluster)", "https://app.datadoghq.com/apm/traces"),
         ]
         for sample in pinned {
             guard let url = URL(string: sample.1),
-                  let tab = try? await store.openTab(url: url, title: sample.0, in: research.id, at: Date())
+                  let tab = try? await store.openTab(url: url, title: sample.0, in: research.id, at: now)
             else {
                 continue
             }
             try? await store.setPinned(true, tabID: tab.id)
         }
         for sample in today {
-            guard let url = URL(string: sample.1) else {
+            guard let url = URL(string: sample.1),
+                  let tab = try? await store.openTab(url: url, title: sample.0, in: research.id, at: now)
+            else {
                 continue
             }
-            _ = try? await store.openTab(url: url, title: sample.0, in: research.id, at: Date())
-        }
-        for title in ["Vector Math Engine", "Local Runtimes"] {
-            if let url = URL(string: "https://example.com/\(title.lowercased().replacingOccurrences(of: " ", with: "-"))") {
-                _ = try? await store.openTab(url: url, title: title, in: systems.id, at: Date())
+            if sample.0 == Self.readingTabTitle {
+                activeTabID = tab.id
             }
+        }
+        for sample in systemsTabs {
+            guard let url = URL(string: sample.1) else { continue }
+            _ = try? await store.openTab(url: url, title: sample.0, in: systems.id, at: now)
         }
     }
 }

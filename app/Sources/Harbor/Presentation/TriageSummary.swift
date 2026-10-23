@@ -7,18 +7,30 @@ struct TriageSummary: Equatable {
     let archived: Int
     let duplicates: Int
     let stale: Int
+    let highMemory: Int
+
+    init(total: Int, keep: Int, archived: Int, duplicates: Int, stale: Int, highMemory: Int = 0) {
+        self.total = total
+        self.keep = keep
+        self.archived = archived
+        self.duplicates = duplicates
+        self.stale = stale
+        self.highMemory = highMemory
+    }
 
     static func make(tabs: [BrowserTab], now: Date) -> TriageSummary {
         let open = tabs.filter { $0.state != .archived }
         let urlCounts = Dictionary(grouping: open, by: \.url.absoluteString).mapValues(\.count)
         let duplicateCount = urlCounts.values.filter { $0 > 1 }.reduce(0) { $0 + $1 }
         let staleCount = open.filter { now.timeIntervalSince($0.lastActivatedAt) >= BrowserStore.staleAfter }.count
+        let highMemCount = open.filter { TabMemory.isHighMemory($0) }.count
         return TriageSummary(
             total: tabs.count,
             keep: tabs.filter { $0.isPinned }.count,
             archived: tabs.filter { $0.state == .archived }.count,
             duplicates: duplicateCount,
-            stale: staleCount
+            stale: staleCount,
+            highMemory: highMemCount
         )
     }
 }

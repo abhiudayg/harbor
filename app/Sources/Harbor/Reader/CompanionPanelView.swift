@@ -29,23 +29,21 @@ struct CompanionPanelView: View {
             composer
         }
         .frame(maxHeight: .infinity, alignment: .top)
-        .background(HarborColor.surfaceLow)
+        .glassPanel()
     }
 
     private var header: some View {
         HStack {
-            Image(systemName: "sparkles")
-                .font(.system(size: 12))
+            MaterialIcon("auto_awesome", size: 12)
                 .foregroundStyle(HarborColor.primary)
             Text("Harbor Companion")
-                .font(HarborTypography.chrome(size: 13, weight: .semibold))
+                .font(HarborTypography.text(size: 13, weight: .semibold))
                 .foregroundStyle(HarborColor.onSurface)
             Spacer()
             Button {
                 model.isAssistantPresented = false
             } label: {
-                Image(systemName: "minus")
-                    .font(.system(size: 11))
+                MaterialIcon("remove", size: 11)
                     .foregroundStyle(HarborColor.onSurfaceVariant)
             }
             .buttonStyle(.plain)
@@ -59,7 +57,7 @@ struct CompanionPanelView: View {
         section("Action required", badge: model.pendingApprovals.isEmpty ? nil : "\(model.pendingApprovals.count) pending") {
             if model.pendingApprovals.isEmpty {
                 Text("Nothing is waiting for you.")
-                    .font(HarborTypography.chrome(size: 12))
+                    .font(HarborTypography.text(size: 12))
                     .foregroundStyle(HarborColor.onSurfaceVariant)
             }
             ForEach(model.pendingApprovals) { request in
@@ -71,10 +69,10 @@ struct CompanionPanelView: View {
     private func approvalCard(_ request: ApprovalRequest) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("\(Self.actionLabel(request.action)) on \(request.site)")
-                .font(HarborTypography.chrome(size: 12, weight: .semibold))
+                .font(HarborTypography.text(size: 12, weight: .semibold))
                 .foregroundStyle(HarborColor.approvalText)
             Text("The agent is paused until you decide.")
-                .font(HarborTypography.chrome(size: 11))
+                .font(HarborTypography.text(size: 11))
                 .foregroundStyle(HarborColor.onSurfaceVariant)
             HStack(spacing: 8) {
                 Button("Reject") { Task { await model.deny(request) } }
@@ -94,7 +92,7 @@ struct CompanionPanelView: View {
         section("Tasks (\(liveTasks.count))", badge: nil) {
             if liveTasks.isEmpty {
                 Text("No agent tasks are running.")
-                    .font(HarborTypography.chrome(size: 12))
+                    .font(HarborTypography.text(size: 12))
                     .foregroundStyle(HarborColor.onSurfaceVariant)
             }
             ForEach(liveTasks) { task in
@@ -107,12 +105,12 @@ struct CompanionPanelView: View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
                 Text(task.steps.first?.displayName ?? "Task")
-                    .font(HarborTypography.chrome(size: 12, weight: .medium))
+                    .font(HarborTypography.text(size: 12, weight: .medium))
                     .foregroundStyle(HarborColor.onSurface)
                     .lineLimit(1)
                 Spacer()
                 Text("\(progressPercent(task))%")
-                    .font(HarborTypography.mono(size: 10))
+                    .font(HarborTypography.text(size: 10))
                     .foregroundStyle(HarborColor.onSurfaceVariant)
             }
             ProgressView(value: progress(task))
@@ -120,27 +118,27 @@ struct CompanionPanelView: View {
                 .tint(HarborColor.accentTeal)
             HStack {
                 Text(stepLine(task))
-                    .font(HarborTypography.chrome(size: 11))
+                    .font(HarborTypography.text(size: 11))
                     .foregroundStyle(HarborColor.onSurfaceVariant)
                 Spacer()
                 Button("Stop") {
                     Task { await model.stop(task) }
                 }
                 .buttonStyle(.plain)
-                .font(HarborTypography.chrome(size: 11, weight: .medium))
+                .font(HarborTypography.text(size: 11, weight: .medium))
                 .foregroundStyle(HarborColor.approvalText)
                 .accessibilityIdentifier("assistant-stop")
             }
         }
         .padding(10)
-        .background(HarborColor.surfaceLowest, in: RoundedRectangle(cornerRadius: 8))
+        .glassCard(cornerRadius: 8)
     }
 
     private var citationsSection: some View {
         section("Citations", badge: nil) {
-            ForEach(Array(article.footnotes.enumerated()), id: \.offset) { index, note in
-                Text("[\(index + 1)] \(note)")
-                    .font(HarborTypography.mono(size: 10))
+            ForEach(article.footnotes, id: \.number) { note in
+                Text("[\(note.number)] \(note.title)")
+                    .font(HarborTypography.text(size: 10))
                     .foregroundStyle(HarborColor.primary)
                     .padding(.horizontal, 6)
                     .padding(.vertical, 3)
@@ -153,7 +151,7 @@ struct CompanionPanelView: View {
         section("Ask about this page", badge: "No model connected") {
             ForEach(messages) { message in
                 Text(message.text)
-                    .font(HarborTypography.chrome(size: 12))
+                    .font(HarborTypography.text(size: 12))
                     .foregroundStyle(message.isUser ? HarborColor.onSurface : HarborColor.onSurfaceVariant)
                     .padding(10)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -169,19 +167,18 @@ struct CompanionPanelView: View {
         HStack(spacing: 8) {
             TextField("Ask about this page", text: $draft)
                 .textFieldStyle(.plain)
-                .font(HarborTypography.chrome(size: 12))
+                .font(HarborTypography.text(size: 12))
                 .onSubmit(send)
                 .accessibilityIdentifier("assistant-composer")
             Button(action: send) {
-                Image(systemName: "arrow.up.circle.fill")
-                    .font(.system(size: 18))
+                MaterialIcon("arrow_upward", size: 18)
                     .foregroundStyle(draft.trimmingCharacters(in: .whitespaces).isEmpty ? HarborColor.outline : HarborColor.accentTeal)
             }
             .buttonStyle(.plain)
             .disabled(draft.trimmingCharacters(in: .whitespaces).isEmpty)
         }
         .padding(12)
-        .background(HarborColor.surfaceLowest)
+        .glassPanel()
         .overlay(alignment: .top) {
             Divider().overlay(HarborColor.outlineVariant.opacity(0.3))
         }
@@ -238,13 +235,13 @@ struct CompanionPanelView: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Text(title.uppercased())
-                    .font(HarborTypography.mono(size: 10, weight: .semibold))
+                    .font(HarborTypography.text(size: 10, weight: .semibold))
                     .tracking(1)
                     .foregroundStyle(HarborColor.onSurfaceVariant)
                 Spacer()
                 if let badge {
                     Text(badge)
-                        .font(HarborTypography.mono(size: 9, weight: .medium))
+                        .font(HarborTypography.text(size: 9, weight: .medium))
                         .foregroundStyle(HarborColor.primary)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)

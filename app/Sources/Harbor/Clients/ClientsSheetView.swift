@@ -25,10 +25,10 @@ struct ClientsSheetView: View {
         HStack {
             VStack(alignment: .leading, spacing: 4) {
                 Text("MCP clients")
-                    .font(HarborTypography.editorial(size: 20, weight: .medium))
+                    .font(HarborTypography.headline(size: 20, weight: .medium))
                     .foregroundStyle(HarborColor.onSurface)
                 Text(serverLine)
-                    .font(HarborTypography.mono(size: 11))
+                    .font(HarborTypography.text(size: 11))
                     .foregroundStyle(HarborColor.onSurfaceVariant)
                     .accessibilityIdentifier("clients-server-status")
             }
@@ -48,7 +48,7 @@ struct ClientsSheetView: View {
     private var issueSection: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("NEW CLIENT")
-                .font(HarborTypography.mono(size: 10, weight: .semibold))
+                .font(HarborTypography.text(size: 10, weight: .semibold))
                 .tracking(1)
                 .foregroundStyle(HarborColor.onSurfaceVariant)
             HStack {
@@ -65,11 +65,11 @@ struct ClientsSheetView: View {
             }
             if let errorMessage {
                 Text(errorMessage)
-                    .font(HarborTypography.chrome(size: 12))
+                    .font(HarborTypography.text(size: 12))
                     .foregroundStyle(HarborColor.approvalText)
             }
             Text("New clients have no grants. Nothing they send runs until you grant it.")
-                .font(HarborTypography.chrome(size: 11))
+                .font(HarborTypography.text(size: 11))
                 .foregroundStyle(HarborColor.onSurfaceVariant)
         }
     }
@@ -77,11 +77,11 @@ struct ClientsSheetView: View {
     private func tokenBox(_ token: String) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             Text("Copy this token now. Harbor keeps only a digest and cannot show it again.")
-                .font(HarborTypography.chrome(size: 11, weight: .medium))
+                .font(HarborTypography.text(size: 11, weight: .medium))
                 .foregroundStyle(HarborColor.approvalText)
             HStack {
                 Text(token)
-                    .font(HarborTypography.mono(size: 11))
+                    .font(HarborTypography.text(size: 11))
                     .foregroundStyle(HarborColor.onSurface)
                     .textSelection(.enabled)
                     .lineLimit(1)
@@ -102,22 +102,22 @@ struct ClientsSheetView: View {
     private var clientList: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("CONNECTED CLIENTS (\(model.clients.count))")
-                .font(HarborTypography.mono(size: 10, weight: .semibold))
+                .font(HarborTypography.text(size: 10, weight: .semibold))
                 .tracking(1)
                 .foregroundStyle(HarborColor.onSurfaceVariant)
             if model.clients.isEmpty {
                 Text("No clients yet.")
-                    .font(HarborTypography.chrome(size: 12))
+                    .font(HarborTypography.text(size: 12))
                     .foregroundStyle(HarborColor.onSurfaceVariant)
             }
             ForEach(model.clients) { client in
                 HStack {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(client.name)
-                            .font(HarborTypography.chrome(size: 13, weight: .medium))
+                            .font(HarborTypography.text(size: 13, weight: .medium))
                             .foregroundStyle(HarborColor.onSurface)
                         Text("\(client.grantCount) grants")
-                            .font(HarborTypography.mono(size: 10))
+                            .font(HarborTypography.text(size: 10))
                             .foregroundStyle(HarborColor.onSurfaceVariant)
                     }
                     Spacer()

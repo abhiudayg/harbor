@@ -2,86 +2,126 @@ import AppKit
 import SwiftUI
 
 struct ReaderArticleView: View {
-    static let measure: CGFloat = 640
-
     private let article = ReaderArticle.cognitiveErgonomics
     @State private var isSaved = false
-    @State private var usesSansBody = false
+    @State private var isLargeType = false
     @State private var didExport = false
+
+    private var bodySize: CGFloat {
+        isLargeType ? 18 : 16
+    }
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 0) {
-                meta
-                    .padding(.bottom, 14)
-                Text(article.title)
-                    .font(HarborTypography.editorial(size: 34, weight: .medium))
-                    .foregroundStyle(HarborColor.onSurface)
-                    .fixedSize(horizontal: false, vertical: true)
-                byline
-                    .padding(.top, 14)
-                    .padding(.bottom, 12)
-                actions
-                    .padding(.bottom, 28)
-                ForEach(article.paragraphs, id: \.self) { paragraph in
-                    body(paragraph: paragraph)
+            VStack(alignment: .leading, spacing: 32) {
+                header
+                    .padding(32)
+                    .glassCard(cornerRadius: 20)
+                VStack(alignment: .leading, spacing: 24) {
+                    ForEach(Array(article.blocks.enumerated()), id: \.offset) { item in
+                        blockView(item.element)
+                    }
                 }
-                pullQuote
-                metrics
-                codeBlock
-                footnote
+                .padding(32)
+                .glassCard(cornerRadius: 20)
                 readingFooter
             }
-            .frame(maxWidth: Self.measure, alignment: .leading)
-            .padding(.horizontal, 40)
-            .padding(.vertical, 40)
+            .frame(maxWidth: 768, alignment: .leading)
+            .padding(.horizontal, 64)
+            .padding(.top, 32)
+            .padding(.bottom, 48)
             .frame(maxWidth: .infinity)
         }
         .scrollIndicators(.never)
-        .background(HarborColor.surface)
     }
 
-    private var meta: some View {
-        HStack(spacing: 8) {
-            Text(article.kicker.uppercased())
-            Text("·")
-            Text(article.published.uppercased())
-            Text("·")
-            Text(article.readingTime.uppercased())
+    private var header: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                HStack(spacing: 8) {
+                    Text(article.kicker.uppercased())
+                    Text("/")
+                    Text(article.section.uppercased())
+                        .foregroundStyle(HarborColor.primary)
+                        .fontWeight(.medium)
+                }
+                .font(HarborTypography.text(size: 11))
+                .tracking(0.55)
+                .foregroundStyle(HarborColor.outline)
+                Spacer()
+                HStack(spacing: 12) {
+                    Text(article.published)
+                        .font(HarborTypography.text(size: 11))
+                        .foregroundStyle(HarborColor.outline)
+                    Circle()
+                        .fill(HarborColor.outlineVariant)
+                        .frame(width: 4, height: 4)
+                    Text(article.readingTime)
+                        .font(HarborTypography.text(size: 11))
+                        .foregroundStyle(HarborColor.onSurfaceVariant)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(HarborColor.surfaceContainerLow, in: RoundedRectangle(cornerRadius: 4))
+                }
+            }
+            Text(article.title)
+                .font(HarborTypography.headline(size: 28, weight: .semibold))
+                .tracking(-0.4)
+                .lineSpacing(3)
+                .foregroundStyle(HarborColor.primary)
+                .fixedSize(horizontal: false, vertical: true)
+            byline
+                .padding(.top, 8)
         }
-        .font(HarborTypography.mono(size: 10, weight: .medium))
-        .tracking(1)
-        .foregroundStyle(HarborColor.onSurfaceVariant.opacity(0.8))
+        .padding(.bottom, 24)
+        .overlay(alignment: .bottom) {
+            Divider().overlay(HarborColor.outlineVariant)
+        }
     }
 
     private var byline: some View {
-        HStack(spacing: 8) {
-            Text(article.author)
-            Text("·")
-            Text("Reviewed by \(article.reviewer)")
-        }
-        .font(HarborTypography.chrome(size: 13))
-        .foregroundStyle(HarborColor.onSurfaceVariant)
-    }
-
-    private var actions: some View {
-        HStack(spacing: 6) {
-            actionButton(isSaved ? "Saved" : "Save") { isSaved.toggle() }
-            actionButton("Type") { usesSansBody.toggle() }
-            actionButton(didExport ? "Copied" : "Export") { export() }
-            Spacer()
-        }
-    }
-
-    private func actionButton(_ title: String, perform: @escaping () -> Void) -> some View {
-        Button(action: perform) {
-            Text(title)
-                .font(HarborTypography.chrome(size: 11, weight: .medium))
+        HStack(spacing: 12) {
+            Text("EV")
+                .font(HarborTypography.text(size: 11, weight: .semibold))
                 .foregroundStyle(HarborColor.primary)
-                .padding(.horizontal, 8)
-                .frame(height: 24)
-                .background(HarborColor.surfaceLowest, in: RoundedRectangle(cornerRadius: 6))
-                .overlay(RoundedRectangle(cornerRadius: 6).stroke(HarborColor.hairline))
+                .frame(width: 28, height: 28)
+                .background(HarborColor.surfaceContainer, in: Circle())
+                .overlay(Circle().stroke(HarborColor.outlineVariant))
+            (Text("By ")
+                + Text(article.author).fontWeight(.medium).foregroundColor(HarborColor.onSurface)
+                + Text(" · Reviewed by ")
+                + Text(article.reviewer).italic())
+                .font(HarborTypography.text(size: 13))
+                .foregroundStyle(HarborColor.onSurfaceVariant)
+            Spacer()
+            HStack(spacing: 6) {
+                actionButton(isSaved ? "Saved" : "Save", symbol: isSaved ? "bookmark" : "bookmark") {
+                    isSaved.toggle()
+                }
+                actionButton("Type", symbol: "text_fields") {
+                    isLargeType.toggle()
+                }
+                actionButton(didExport ? "Copied" : "Export", symbol: "share") {
+                    export()
+                }
+            }
+        }
+    }
+
+    private func actionButton(_ title: String, symbol: String, perform: @escaping () -> Void) -> some View {
+        Button(action: perform) {
+            HStack(spacing: 4) {
+                MaterialIcon(symbol)
+                    .font(.system(size: 13))
+                Text(title)
+                    .font(HarborTypography.text(size: 11, weight: .medium))
+            }
+            .foregroundStyle(HarborColor.outline)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(HarborColor.surfaceLowest, in: RoundedRectangle(cornerRadius: 4))
+            .overlay(RoundedRectangle(cornerRadius: 4).stroke(HarborColor.outlineVariant))
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
     }
@@ -92,108 +132,229 @@ struct ReaderArticleView: View {
         didExport = true
     }
 
-    private func body(paragraph: String) -> some View {
-        Text(paragraph)
-            .font(usesSansBody ? HarborTypography.chrome(size: 16) : HarborTypography.editorial(size: 18))
-            .lineSpacing(7)
-            .foregroundStyle(HarborColor.onSurface)
-            .padding(.bottom, 22)
-            .fixedSize(horizontal: false, vertical: true)
+    @ViewBuilder
+    private func blockView(_ block: ReaderArticle.Block) -> some View {
+        switch block {
+        case .dropCap(let text):
+            dropCapParagraph(text)
+        case .paragraph(let text):
+            paragraph(text)
+        case .pullQuote(let text, let source):
+            pullQuote(text: text, source: source)
+        case .heading(let text):
+            heading(text)
+        case .metrics(let metrics):
+            metricsGrid(metrics)
+        case .code(let code):
+            codeBlock(code)
+        case .footnote(let note):
+            footnote(note)
+        }
     }
 
-    private var pullQuote: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("“\(article.pullQuote)”")
-                .font(HarborTypography.editorial(size: 20))
-                .italic()
+    private func paragraph(_ text: String) -> some View {
+        Text(text)
+            .font(HarborTypography.text(size: bodySize))
+            .lineSpacing(bodySize * 0.55)
+            .foregroundStyle(HarborColor.onSurface)
+            .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func dropCapParagraph(_ text: String) -> some View {
+        let first = String(text.prefix(1))
+        let rest = String(text.dropFirst())
+        return HStack(alignment: .top, spacing: 8) {
+            Text(first)
+                .font(HarborTypography.text(size: 36, weight: .semibold))
+                .foregroundStyle(HarborColor.primary)
+            Text(rest)
+                .font(HarborTypography.text(size: 16))
+                .lineSpacing(7)
                 .foregroundStyle(HarborColor.onSurface)
-            Text("— \(article.pullQuoteSource)")
-                .font(HarborTypography.mono(size: 11))
-                .foregroundStyle(HarborColor.onSurfaceVariant)
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .padding(.leading, 18)
-        .padding(.vertical, 6)
+    }
+
+    private func pullQuote(text: String, source: String) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("“\(text)”")
+                .font(HarborTypography.headline(size: 16, weight: .semibold))
+                .italic()
+                .lineSpacing(3)
+                .foregroundStyle(HarborColor.onSurface)
+            Text("— \(source)".uppercased())
+                .font(HarborTypography.text(size: 11))
+                .tracking(0.55)
+                .foregroundStyle(HarborColor.outline)
+        }
+        .padding(.leading, 16)
+        .padding(.trailing, 16)
+        .padding(.vertical, 12)
+        .background(HarborColor.surface)
         .overlay(alignment: .leading) {
             Rectangle()
-                .fill(HarborColor.accentTeal)
+                .fill(HarborColor.primary)
                 .frame(width: 2)
         }
-        .padding(.vertical, 12)
+        .padding(.vertical, 8)
     }
 
-    private var metrics: some View {
-        HStack(alignment: .top, spacing: 12) {
-            ForEach(article.metrics) { metric in
+    private func heading(_ text: String) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Divider().overlay(HarborColor.outlineVariant)
+            Text(text)
+                .font(HarborTypography.headline(size: 18, weight: .semibold))
+                .foregroundStyle(HarborColor.onSurface)
+                .padding(.top, 16)
+        }
+    }
+
+    private func metricsGrid(_ metrics: [ReaderArticle.Metric]) -> some View {
+        HStack(alignment: .top, spacing: 16) {
+            ForEach(metrics) { metric in
                 metricCard(metric)
             }
         }
-        .padding(.bottom, 22)
     }
 
     private func metricCard(_ metric: ReaderArticle.Metric) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(metric.index.uppercased())
-                .font(HarborTypography.mono(size: 10, weight: .semibold))
-                .tracking(1)
-                .foregroundStyle(HarborColor.primary)
+        let tone = metric.tone == .accent ? HarborColor.primary : HarborColor.metricPositive
+        return VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text(metric.index.uppercased())
+                    .font(HarborTypography.text(size: 11))
+                    .tracking(0.55)
+                    .foregroundStyle(HarborColor.outline)
+                Spacer()
+                Circle()
+                    .fill(metric.tone == .accent ? HarborColor.primaryContainer : HarborColor.metricPositive)
+                    .frame(width: 8, height: 8)
+            }
             Text(metric.title)
-                .font(HarborTypography.chrome(size: 13, weight: .semibold))
+                .font(HarborTypography.headline(size: 15, weight: .semibold))
                 .foregroundStyle(HarborColor.onSurface)
-            ForEach(metric.lines, id: \.self) { line in
-                Text(line)
-                    .font(HarborTypography.chrome(size: 12))
-                    .foregroundStyle(HarborColor.onSurfaceVariant)
-            }
-        }
-        .padding(12)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(HarborColor.surfaceLowest, in: RoundedRectangle(cornerRadius: 8))
-        .overlay(RoundedRectangle(cornerRadius: 8).stroke(HarborColor.hairline))
-    }
-
-    private var codeBlock: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(article.codeCaption)
-                .font(HarborTypography.mono(size: 10, weight: .medium))
+            Text(metric.detail)
+                .font(HarborTypography.text(size: 13))
+                .lineSpacing(4)
                 .foregroundStyle(HarborColor.onSurfaceVariant)
-            Text(article.codeSample)
-                .font(HarborTypography.mono(size: 11))
-                .foregroundStyle(HarborColor.onSurface)
                 .fixedSize(horizontal: false, vertical: true)
+            VStack(spacing: 0) {
+                Divider().overlay(HarborColor.outlineVariant)
+                HStack {
+                    Text(metric.baselineLabel)
+                        .foregroundStyle(HarborColor.outline)
+                    Spacer()
+                    Text(metric.baseline)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(tone)
+                }
+                .padding(.top, 8)
+            }
+            .font(HarborTypography.text(size: 11))
         }
-        .padding(12)
+        .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(HarborColor.surfaceContainer, in: RoundedRectangle(cornerRadius: 8))
-        .padding(.bottom, 22)
+        .background(HarborColor.surfaceContainerLow, in: RoundedRectangle(cornerRadius: 4))
+        .overlay(RoundedRectangle(cornerRadius: 4).stroke(HarborColor.outlineVariant))
     }
 
-    private var footnote: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            ForEach(Array(article.footnotes.enumerated()), id: \.offset) { index, note in
-                Text("[\(index + 1)] \(note)")
-                    .font(HarborTypography.mono(size: 11))
-                    .foregroundStyle(HarborColor.onSurfaceVariant)
+    private func codeBlock(_ code: ReaderArticle.CodeBlock) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 8) {
+                MaterialIcon("data_object", size: 12)
+                    .foregroundStyle(HarborColor.outline)
+                Text(code.fileName)
+                    .font(HarborTypography.text(size: 11))
+                    .foregroundStyle(HarborColor.onSurface)
+                Spacer()
+                Text(code.language)
+                    .font(HarborTypography.text(size: 11))
+                    .foregroundStyle(HarborColor.outline)
             }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(HarborColor.surfaceContainerLow)
+            Divider().overlay(HarborColor.outlineVariant)
+            codeLines(code.lines)
+                .font(HarborTypography.text(size: 11))
+                .lineSpacing(3.9)
+                .padding(16)
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .padding(.bottom, 16)
+        .background(HarborColor.surface)
+        .clipShape(RoundedRectangle(cornerRadius: 4))
+        .overlay(RoundedRectangle(cornerRadius: 4).stroke(HarborColor.outlineVariant))
+    }
+
+    private func codeLines(_ lines: [[ReaderArticle.CodeToken]]) -> Text {
+        lines.enumerated().reduce(Text("")) { result, indexed in
+            let line = indexed.element.reduce(Text("")) { $0 + codeText($1) }
+            let separator = indexed.offset == 0 ? Text("") : Text("\n")
+            return result + separator + line
+        }
+    }
+
+    private func codeText(_ token: ReaderArticle.CodeToken) -> Text {
+        let text = Text(token.text).foregroundColor(color(for: token.role))
+        return token.role == .name ? text.fontWeight(.semibold) : text
+    }
+
+    private func color(for role: ReaderArticle.CodeRole) -> Color {
+        switch role {
+        case .plain: HarborColor.onSurface
+        case .keyword, .literal: HarborColor.primary
+        case .name: HarborColor.onSurface
+        case .string: HarborColor.codeString
+        case .approval: HarborColor.approvalAction
+        case .completed: HarborColor.tertiaryGreen
+        case .failed: HarborColor.error
+        }
+    }
+
+    private func footnote(_ note: ReaderArticle.Footnote) -> some View {
+        HStack(alignment: .top, spacing: 10) {
+            Text("[\(note.number)]")
+                .font(HarborTypography.text(size: 11))
+                .foregroundStyle(HarborColor.outline)
+                .padding(.horizontal, 4)
+                .background(HarborColor.surface, in: RoundedRectangle(cornerRadius: 4))
+                .overlay(RoundedRectangle(cornerRadius: 4).stroke(HarborColor.outlineVariant))
+            (Text(note.lead)
+                + Text(note.title).italic().foregroundColor(HarborColor.onSurface)
+                + Text(note.trail))
+                .font(HarborTypography.text(size: 13))
+                .foregroundStyle(HarborColor.onSurfaceVariant)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(12)
+        .background(HarborColor.surfaceContainerLow, in: RoundedRectangle(cornerRadius: 4))
+        .overlay(RoundedRectangle(cornerRadius: 4).stroke(HarborColor.outlineVariant))
     }
 
     private var readingFooter: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 6) {
-                Image(systemName: "checkmark.circle")
-                    .foregroundStyle(HarborColor.tertiaryGreen)
+        HStack {
+            HStack(spacing: 8) {
+                MaterialIcon("check_circle", size: 14)
+                    .foregroundStyle(HarborColor.outline)
                 Text("Completed reading · Automatically archived")
-                    .font(HarborTypography.chrome(size: 12, weight: .medium))
-                    .foregroundStyle(HarborColor.onSurface)
             }
-            Text("Next in queue: \(article.nextInQueue)")
-                .font(HarborTypography.chrome(size: 12))
-                .foregroundStyle(HarborColor.onSurfaceVariant)
+            Spacer()
+            HStack(spacing: 12) {
+                Text("Next in queue:")
+                    .foregroundStyle(HarborColor.outline)
+                HStack(spacing: 4) {
+                    Text(article.nextInQueue)
+                        .fontWeight(.medium)
+                    MaterialIcon("arrow_forward", size: 11)
+                }
+                .foregroundStyle(HarborColor.primary)
+            }
         }
-        .padding(12)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(HarborColor.surfaceLowest, in: RoundedRectangle(cornerRadius: 8))
-        .overlay(RoundedRectangle(cornerRadius: 8).stroke(HarborColor.hairline))
+        .font(HarborTypography.text(size: 13))
+        .foregroundStyle(HarborColor.onSurfaceVariant)
+        .padding(.top, 32)
+        .overlay(alignment: .top) {
+            Divider().overlay(HarborColor.outlineVariant)
+        }
     }
 }

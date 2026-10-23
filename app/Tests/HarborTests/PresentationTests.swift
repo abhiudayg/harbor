@@ -53,7 +53,7 @@ struct CommandBarResultsTests {
         )
 
         #expect(results.tabs.map(\.title) == ["Paxos"])
-        #expect(results.actions.map(\.id) == ["triage", "inbox", "clients"])
+        #expect(results.actions.map(\.id) == ["triage", "inbox", "clients", "diagnostics"])
     }
 
     @Test("a query filters tabs by title and by address")

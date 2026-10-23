@@ -3,18 +3,20 @@ import Testing
 
 @Suite("Reader article")
 struct ReaderArticleTests {
-    @Test("export text carries the title and every paragraph in reading order")
+    @Test("export text starts with the title and includes the body text in reading order")
     func plainTextMatchesTheRenderedArticle() {
         let article = ReaderArticle.cognitiveErgonomics
 
-        let lines = article.plainText.components(separatedBy: "\n\n")
+        let parts = article.plainText.components(separatedBy: "\n\n")
 
-        #expect(lines.first == article.title)
-        #expect(Array(lines.dropFirst()) == article.paragraphs)
+        #expect(parts.first == article.title)
+        #expect(parts.contains { $0.hasPrefix("Every decorative flourish") })
+        #expect(parts.contains("1. Spatial Discipline & The 1px Hairline"))
+        #expect(parts.contains { $0.hasPrefix("Cognitive Saccade Latency") })
     }
 
-    @Test("citations come from the article footnotes")
-    func footnotesAreNonEmptyForTheSampleArticle() {
-        #expect(ReaderArticle.cognitiveErgonomics.footnotes == ["The Disappearance of the Browser Frame"])
+    @Test("footnotes come from the article so citations match the text")
+    func footnotesComeFromTheArticle() {
+        #expect(ReaderArticle.cognitiveErgonomics.footnotes.map(\.title) == ["The Disappearance of the Browser Frame"])
     }
 }

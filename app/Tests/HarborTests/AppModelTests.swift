@@ -85,6 +85,17 @@ struct AppModelTests {
         #expect(model.tabs.first { $0.id == tab.id }?.state == .archived)
     }
 
+    @Test("hibernating a tab updates its state to hibernated")
+    func hibernateTab() async throws {
+        let (model, _, _) = Self.makeModel()
+        await model.start()
+        let tab = try #require(model.tabs.first { !$0.isPinned })
+
+        await model.hibernate(tab)
+
+        #expect(model.tabs.first { $0.id == tab.id }?.state == .hibernated)
+    }
+
     @Test("closing a tab removes it from the workspace")
     func closeRemovesTab() async throws {
         let (model, _, _) = Self.makeModel()
@@ -95,6 +106,31 @@ struct AppModelTests {
 
         #expect(model.tabs.count == 10)
         #expect(model.tabs.contains { $0.id == tab.id } == false)
+    }
+
+    @Test("jumping to a tab makes it the active tab and closes the command bar")
+    func jumpActivatesTabAndClosesBar() async throws {
+        let (model, _, _) = Self.makeModel()
+        await model.start()
+        let other = try #require(model.tabs.first { $0.id != model.activeTabID })
+        model.isCommandBarPresented = true
+
+        model.activateTab(other.id)
+
+        #expect(model.activeTabID == other.id)
+        #expect(model.isCommandBarPresented == false)
+    }
+
+    @Test("closing a selection removes every tab in it")
+    func closesEverySelectedTab() async {
+        let (model, _, _) = Self.makeModel()
+        await model.start()
+        let selected = Array(model.tabs.prefix(2))
+
+        await model.close(selected)
+
+        #expect(model.tabs.count == 9)
+        #expect(selected.allSatisfy { tab in !model.tabs.contains { $0.id == tab.id } })
     }
 
     @Test("triage and the inbox replace each other in the content area")
@@ -116,7 +152,8 @@ struct AppModelTests {
         let (model, _, _) = Self.makeModel()
         await model.start()
 
-        await model.archiveStale()
+        let stale = model.tabs.filter { TriageClassifier.status(for: $0, duplicateURLs: [], now: Date()) == .stale }
+        await model.archive(stale)
 
         #expect(model.tabs.allSatisfy { $0.state == .live })
     }
@@ -225,18 +262,44 @@ struct InboxAndTriageOperationTests {
 @Suite("Deduplicate")
 @MainActor
 struct DeduplicateTests {
-    @Test("deduplicating keeps the first copy of each address and closes the rest")
-    func keepsFirstCopy() async throws {
+    @Test("deduplicating keeps the most recently used copy and closes the rest")
+    func keepsMostRecentCopy() async throws {
         let space = Space(name: "Research")
         let store = BrowserStore(spaces: [space])
         let url = try #require(URL(string: "https://example.com/same"))
-        let first = try await store.openTab(url: url, title: "First", in: space.id, at: Fixtures.start)
-        _ = try await store.openTab(url: url, title: "Second", in: space.id, at: Fixtures.start)
+        _ = try await store.openTab(url: url, title: "Older", in: space.id, at: Fixtures.start)
+        let newer = try await store.openTab(
+            url: url,
+            title: "Newer",
+            in: space.id,
+            at: Fixtures.start.addingTimeInterval(3600)
+        )
         let model = AppModel(store: store, clientStore: MemoryClientStore(), serverEnabled: false)
         await model.refresh()
 
         await model.deduplicate(model.tabs)
 
-        #expect(model.tabs.map(\.id) == [first.id])
+        #expect(model.tabs.map(\.id) == [newer.id])
+    }
+
+    @Test("deduplicating never closes a pinned copy")
+    func keepsPinnedCopy() async throws {
+        let space = Space(name: "Research")
+        let store = BrowserStore(spaces: [space])
+        let url = try #require(URL(string: "https://example.com/same"))
+        let pinned = try await store.openTab(url: url, title: "Pinned", in: space.id, at: Fixtures.start)
+        try await store.setPinned(true, tabID: pinned.id)
+        _ = try await store.openTab(
+            url: url,
+            title: "Newer",
+            in: space.id,
+            at: Fixtures.start.addingTimeInterval(3600)
+        )
+        let model = AppModel(store: store, clientStore: MemoryClientStore(), serverEnabled: false)
+        await model.refresh()
+
+        await model.deduplicate(model.tabs)
+
+        #expect(model.tabs.map(\.id) == [pinned.id])
     }
 }
