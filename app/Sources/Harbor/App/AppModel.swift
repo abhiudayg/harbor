@@ -10,6 +10,7 @@ final class AppModel {
     private(set) var pendingApprovals: [ApprovalRequest] = []
     private(set) var tasks: [AgentTask] = []
     private(set) var clients: [MCPClientDirectory.Summary] = []
+    private(set) var policyRules: [PermissionRule] = []
     private(set) var serverPort: UInt16?
 
     var isCommandBarPresented = false
@@ -73,6 +74,7 @@ final class AppModel {
         tabs = await store.tabs
         pendingApprovals = await approvals.pending()
         tasks = await runner.allTasks
+        policyRules = await runner.policy.rules
         clients = await directory?.summaries() ?? []
     }
 
@@ -105,6 +107,37 @@ final class AppModel {
     func keep(_ tab: BrowserTab) async {
         try? await store.setPinned(true, tabID: tab.id)
         await refresh()
+    }
+
+    func deduplicate(_ tabs: [BrowserTab]) async {
+        var seen = Set<String>()
+        for tab in tabs {
+            if seen.insert(tab.url.absoluteString).inserted {
+                continue
+            }
+            try? await store.close(tabID: tab.id)
+        }
+        await refresh()
+    }
+
+    func keepAll(_ tabs: [BrowserTab]) async {
+        for tab in tabs where !tab.isPinned {
+            try? await store.setPinned(true, tabID: tab.id)
+        }
+        await refresh()
+    }
+
+    func stop(_ task: AgentTask) async {
+        _ = try? await runner.stop(task.id)
+        await refresh()
+    }
+
+    var authorizedSites: [String] {
+        Array(Set(policyRules.filter { $0.grant == .allow && $0.site != PermissionRule.anySite }.map(\.site))).sorted()
+    }
+
+    var permittedActions: [String] {
+        Array(Set(policyRules.filter { $0.grant == .allow }.map { $0.action.rawValue })).sorted()
     }
 
     func archive(_ tab: BrowserTab) async {
