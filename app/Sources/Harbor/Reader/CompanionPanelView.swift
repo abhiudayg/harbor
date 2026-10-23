@@ -3,14 +3,10 @@ import SwiftUI
 
 struct CompanionPanelView: View {
     let model: AppModel
+    private let article = ReaderArticle.cognitiveErgonomics
 
-    private static let arguments = [
-        "De-abstraction of layers: Modern clouds enforce proprietary boundaries that prevent root-cause diagnostics.",
-        "Unix composability as insurance: Bounded input/output contracts ensure isolated failure blast radiuses.",
-        "Local-first convergence: CRDTs provide resilience during network collapse without centralized orchestrators.",
-    ]
-
-    private static let citations = ["RFC-8910", "Klim Spec", "A Philosophy of Software Design"]
+    @State private var draft = ""
+    @State private var messages: [ChatMessage] = []
 
     private var liveTasks: [AgentTask] {
         model.tasks.filter { !$0.state.isTerminal }
@@ -22,13 +18,15 @@ struct CompanionPanelView: View {
             Divider().overlay(HarborColor.outlineVariant.opacity(0.3))
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
+                    approvalsSection
                     tasksSection
                     citationsSection
-                    outlineSection
+                    chatSection
                 }
                 .padding(16)
             }
             .scrollIndicators(.never)
+            composer
         }
         .frame(maxHeight: .infinity, alignment: .top)
         .background(HarborColor.surfaceLow)
@@ -43,16 +41,57 @@ struct CompanionPanelView: View {
                 .font(HarborTypography.chrome(size: 13, weight: .semibold))
                 .foregroundStyle(HarborColor.onSurface)
             Spacer()
-            Image(systemName: "minus")
-                .font(.system(size: 11))
-                .foregroundStyle(HarborColor.onSurfaceVariant)
+            Button {
+                model.isAssistantPresented = false
+            } label: {
+                Image(systemName: "minus")
+                    .font(.system(size: 11))
+                    .foregroundStyle(HarborColor.onSurfaceVariant)
+            }
+            .buttonStyle(.plain)
+            .help("Hide Assistant")
         }
         .padding(.horizontal, 16)
         .frame(height: 44)
     }
 
+    private var approvalsSection: some View {
+        section("Action required", badge: model.pendingApprovals.isEmpty ? nil : "\(model.pendingApprovals.count) pending") {
+            if model.pendingApprovals.isEmpty {
+                Text("Nothing is waiting for you.")
+                    .font(HarborTypography.chrome(size: 12))
+                    .foregroundStyle(HarborColor.onSurfaceVariant)
+            }
+            ForEach(model.pendingApprovals) { request in
+                approvalCard(request)
+            }
+        }
+    }
+
+    private func approvalCard(_ request: ApprovalRequest) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("\(Self.actionLabel(request.action)) on \(request.site)")
+                .font(HarborTypography.chrome(size: 12, weight: .semibold))
+                .foregroundStyle(HarborColor.approvalText)
+            Text("The agent is paused until you decide.")
+                .font(HarborTypography.chrome(size: 11))
+                .foregroundStyle(HarborColor.onSurfaceVariant)
+            HStack(spacing: 8) {
+                Button("Reject") { Task { await model.deny(request) } }
+                    .buttonStyle(.bordered)
+                Button("Approve once") { Task { await model.approve(request, scope: .once) } }
+                    .buttonStyle(.borderedProminent)
+                    .tint(HarborColor.accentTeal)
+            }
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(HarborColor.approvalFill, in: RoundedRectangle(cornerRadius: 8))
+        .overlay(RoundedRectangle(cornerRadius: 8).stroke(HarborColor.approvalBorder))
+    }
+
     private var tasksSection: some View {
-        section("Tasks (\(liveTasks.count))", badge: liveTasks.isEmpty ? nil : "\(liveTasks.count) live") {
+        section("Tasks (\(liveTasks.count))", badge: nil) {
             if liveTasks.isEmpty {
                 Text("No agent tasks are running.")
                     .font(HarborTypography.chrome(size: 12))
@@ -97,6 +136,70 @@ struct CompanionPanelView: View {
         .background(HarborColor.surfaceLowest, in: RoundedRectangle(cornerRadius: 8))
     }
 
+    private var citationsSection: some View {
+        section("Citations", badge: nil) {
+            ForEach(Array(article.footnotes.enumerated()), id: \.offset) { index, note in
+                Text("[\(index + 1)] \(note)")
+                    .font(HarborTypography.mono(size: 10))
+                    .foregroundStyle(HarborColor.primary)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 3)
+                    .background(HarborColor.primary.opacity(0.08), in: RoundedRectangle(cornerRadius: 4))
+            }
+        }
+    }
+
+    private var chatSection: some View {
+        section("Ask about this page", badge: "No model connected") {
+            ForEach(messages) { message in
+                Text(message.text)
+                    .font(HarborTypography.chrome(size: 12))
+                    .foregroundStyle(message.isUser ? HarborColor.onSurface : HarborColor.onSurfaceVariant)
+                    .padding(10)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(
+                        message.isUser ? HarborColor.surfaceLowest : HarborColor.surfaceContainer,
+                        in: RoundedRectangle(cornerRadius: 8)
+                    )
+            }
+        }
+    }
+
+    private var composer: some View {
+        HStack(spacing: 8) {
+            TextField("Ask about this page", text: $draft)
+                .textFieldStyle(.plain)
+                .font(HarborTypography.chrome(size: 12))
+                .onSubmit(send)
+                .accessibilityIdentifier("assistant-composer")
+            Button(action: send) {
+                Image(systemName: "arrow.up.circle.fill")
+                    .font(.system(size: 18))
+                    .foregroundStyle(draft.trimmingCharacters(in: .whitespaces).isEmpty ? HarborColor.outline : HarborColor.accentTeal)
+            }
+            .buttonStyle(.plain)
+            .disabled(draft.trimmingCharacters(in: .whitespaces).isEmpty)
+        }
+        .padding(12)
+        .background(HarborColor.surfaceLowest)
+        .overlay(alignment: .top) {
+            Divider().overlay(HarborColor.outlineVariant.opacity(0.3))
+        }
+    }
+
+    private func send() {
+        let question = draft.trimmingCharacters(in: .whitespaces)
+        guard !question.isEmpty else {
+            return
+        }
+        draft = ""
+        messages.append(ChatMessage(isUser: true, text: question))
+        messages.append(ChatMessage(
+            isUser: false,
+            text: "No language model is connected to Harbor yet, so this question was not answered."
+        ))
+    }
+
     private func progress(_ task: AgentTask) -> Double {
         guard !task.steps.isEmpty else {
             return 0
@@ -115,29 +218,19 @@ struct CompanionPanelView: View {
         return "Step \(min(task.cursor + 1, task.steps.count)) of \(task.steps.count)"
     }
 
-    private var citationsSection: some View {
-        section("Citations", badge: nil) {
-            HStack(spacing: 6) {
-                ForEach(Array(Self.citations.enumerated()), id: \.offset) { index, citation in
-                    Text("[\(index + 1)] \(citation)")
-                        .font(HarborTypography.mono(size: 10))
-                        .foregroundStyle(HarborColor.primary)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 3)
-                        .background(HarborColor.primary.opacity(0.08), in: RoundedRectangle(cornerRadius: 4))
-                }
-            }
-        }
-    }
-
-    private var outlineSection: some View {
-        section("Key arguments", badge: "AI Synthesized") {
-            ForEach(Self.arguments, id: \.self) { argument in
-                Text(argument)
-                    .font(HarborTypography.chrome(size: 12))
-                    .foregroundStyle(HarborColor.onSurfaceVariant)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
+    private static func actionLabel(_ action: ActionClass) -> String {
+        switch action {
+        case .read: "Read page"
+        case .navigate: "Navigate"
+        case .click: "Click"
+        case .typeText: "Type"
+        case .submitForm: "Submit form"
+        case .sendMessage: "Send message"
+        case .purchase: "Purchase"
+        case .deleteData: "Delete data"
+        case .download: "Download"
+        case .fillCredential: "Fill credential"
+        case .createTask: "Create task"
         }
     }
 
@@ -161,4 +254,10 @@ struct CompanionPanelView: View {
             content()
         }
     }
+}
+
+private struct ChatMessage: Identifiable {
+    let id = UUID()
+    let isUser: Bool
+    let text: String
 }
