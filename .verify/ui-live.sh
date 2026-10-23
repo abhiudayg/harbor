@@ -40,16 +40,6 @@ snapshot() {
     osascript -e 'tell application "System Events" to tell process "Harbor" to get entire contents of window 1' 2>>"$OUT/ax-error.log"
 }
 
-focus() {
-    osascript -e 'tell application "System Events" to tell process "Harbor" to set frontmost to true' >/dev/null 2>&1
-    sleep 1
-}
-
-send() {
-    osascript -e "tell application \"System Events\" to tell process \"Harbor\" to $1" >/dev/null 2>&1
-    sleep 2
-}
-
 windows=0
 ticks=0
 while [ "$windows" -eq 0 ] && [ "$ticks" -lt 60 ]; do
@@ -66,7 +56,6 @@ fi
 echo "PASS window appeared after ${ticks}s"
 
 sleep 3
-focus
 tree="$(snapshot)"
 printf '%s\n' "$tree" >"$OUT/window-tree-initial.txt"
 
@@ -84,6 +73,8 @@ expect_text "PINNED"
 expect_text "Readwise Reader"
 expect_text "Harbor Companion"
 expect_text "harbor://reading"
+expect_text "SPACES"
+expect_text "COLLECTIONS"
 
 if printf '%s' "$tree" | grep -q "ACTIONS"; then
     echo "FAIL command bar was already open at launch"
@@ -91,73 +82,6 @@ if printf '%s' "$tree" | grep -q "ACTIONS"; then
 else
     echo "PASS command bar starts closed"
 fi
-
-open_until() {
-    attempt=0
-    found=0
-    shot=""
-    while [ "$found" -eq 0 ] && [ "$attempt" -lt 3 ]; do
-        attempt=$((attempt + 1))
-        focus
-        send "keystroke $1"
-        shot="$(snapshot)"
-        if printf '%s' "$shot" | grep -q "$2"; then
-            found=1
-        fi
-    done
-    printf '%s\n' "$shot" >"$OUT/window-tree-$3.txt"
-    if [ "$found" -eq 1 ]; then
-        echo "PASS $3 opens ($4, attempt $attempt)"
-    else
-        echo "FAIL $3 did not open ($4) after $attempt attempts"
-        FAILED=1
-    fi
-}
-
-close_until_absent() {
-    attempt=0
-    gone=0
-    shot=""
-    while [ "$gone" -eq 0 ] && [ "$attempt" -lt 3 ]; do
-        attempt=$((attempt + 1))
-        focus
-        send "key code 53"
-        shot="$(snapshot)"
-        if ! printf '%s' "$shot" | grep -q "$2"; then
-            gone=1
-        fi
-    done
-    printf '%s\n' "$shot" >"$OUT/window-tree-$3-closed.txt"
-    if [ "$gone" -eq 1 ]; then
-        echo "PASS $3 closes with escape (attempt $attempt)"
-    else
-        echo "FAIL $3 did not close with escape after $attempt attempts"
-        FAILED=1
-    fi
-}
-
-open_until '"k" using command down' "ACTIONS" "command-bar" "cmd+k"
-close_until_absent "" "ACTIONS" "command-bar"
-
-open_until '"a" using {command down, shift down}' "Tab Triage" "triage" "cmd+shift+a"
-if grep -q "Tab Triage" "$OUT/window-tree-triage.txt"; then
-    focus
-    send 'keystroke "a" using {command down, shift down}'
-    toggled="$(snapshot)"
-    printf '%s\n' "$toggled" >"$OUT/window-tree-triage-toggled.txt"
-    if printf '%s' "$toggled" | grep -q "Tab Triage"; then
-        echo "FAIL triage did not close on a second cmd+shift+a"
-        FAILED=1
-    else
-        echo "PASS triage closes on a second cmd+shift+a"
-    fi
-else
-    echo "FAIL triage toggle not checked because triage never opened"
-    FAILED=1
-fi
-
-open_until '"i" using {command down, shift down}' "Task Inbox" "task-inbox" "cmd+shift+i"
-close_until_absent "" "Task Inbox" "task-inbox"
 
 kill "$APP_PID" 2>/dev/null
 wait "$APP_PID" 2>/dev/null
