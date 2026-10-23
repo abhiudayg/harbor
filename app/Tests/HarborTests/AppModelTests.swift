@@ -15,7 +15,7 @@ struct AppModelTests {
             audit: AuditLog(),
             driver: driver
         )
-        let model = AppModel(store: BrowserStore(), approvals: approvals, runner: runner)
+        let model = AppModel(store: BrowserStore(), approvals: approvals, runner: runner, clientStore: MemoryClientStore(), serverEnabled: false)
         return (model, runner, approvals)
     }
 

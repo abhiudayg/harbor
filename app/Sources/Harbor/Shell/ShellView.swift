@@ -43,6 +43,9 @@ struct ShellView: View {
         .sheet(isPresented: $model.isInboxPresented) {
             TaskInboxView(model: model)
         }
+        .sheet(isPresented: $model.isClientsPresented) {
+            ClientsSheetView(model: model)
+        }
     }
 
     private var shortcuts: some View {

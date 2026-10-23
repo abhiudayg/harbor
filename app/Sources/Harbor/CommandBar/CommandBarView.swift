@@ -120,15 +120,19 @@ struct CommandBarView: View {
     }
 
     private func icon(for action: String) -> String {
-        action == "triage" ? "square.stack.3d.up" : "tray.full"
+        switch action {
+        case "triage": "square.stack.3d.up"
+        case "clients": "person.badge.key"
+        default: "tray.full"
+        }
     }
 
     private func run(_ action: String) {
         model.isCommandBarPresented = false
-        if action == "triage" {
-            model.isTriagePresented = true
-        } else {
-            model.isInboxPresented = true
+        switch action {
+        case "triage": model.isTriagePresented = true
+        case "clients": model.isClientsPresented = true
+        default: model.isInboxPresented = true
         }
     }
 }

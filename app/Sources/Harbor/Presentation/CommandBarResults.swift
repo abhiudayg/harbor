@@ -37,5 +37,6 @@ struct CommandBarResults: Equatable {
     static let actions: [Action] = [
         Action(id: "triage", title: "Triage tabs", detail: "Review every open tab and keep, archive, or close it"),
         Action(id: "inbox", title: "Open Task Inbox", detail: "See background tasks and pending approvals"),
+        Action(id: "clients", title: "Manage MCP clients", detail: "Connect AI agents to Harbor, or revoke them"),
     ]
 }

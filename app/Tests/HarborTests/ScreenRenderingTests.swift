@@ -15,7 +15,7 @@ struct ScreenRenderingTests {
 
     @Test("the main window renders at the Stitch canvas size of 1440 by 900")
     func mainWindowAtCanvas() async {
-        let model = AppModel()
+        let model = AppModel(clientStore: MemoryClientStore(), serverEnabled: false)
         await model.start()
 
         let image = Self.render(ShellView(model: model), width: 1440, height: 900)
@@ -25,7 +25,7 @@ struct ScreenRenderingTests {
 
     @Test("the main window still renders when the window is narrow")
     func mainWindowNarrow() async {
-        let model = AppModel()
+        let model = AppModel(clientStore: MemoryClientStore(), serverEnabled: false)
         await model.start()
 
         #expect(Self.render(ShellView(model: model), width: 900, height: 700)?.size == CGSize(width: 900, height: 700))
@@ -33,7 +33,7 @@ struct ScreenRenderingTests {
 
     @Test("the command bar renders over the window")
     func commandBarRenders() async {
-        let model = AppModel()
+        let model = AppModel(clientStore: MemoryClientStore(), serverEnabled: false)
         await model.start()
         model.isCommandBarPresented = true
 
@@ -42,7 +42,7 @@ struct ScreenRenderingTests {
 
     @Test("the triage view renders at the Stitch canvas size")
     func triageRenders() async {
-        let model = AppModel()
+        let model = AppModel(clientStore: MemoryClientStore(), serverEnabled: false)
         await model.start()
         model.isTriagePresented = true
 
@@ -51,6 +51,6 @@ struct ScreenRenderingTests {
 
     @Test("the task inbox renders its empty state")
     func inboxRendersEmpty() {
-        #expect(Self.render(TaskInboxView(model: AppModel()), width: 900, height: 560) != nil)
+        #expect(Self.render(TaskInboxView(model: AppModel(clientStore: MemoryClientStore(), serverEnabled: false)), width: 900, height: 560) != nil)
     }
 }

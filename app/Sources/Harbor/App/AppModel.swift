@@ -9,26 +9,40 @@ final class AppModel {
     private(set) var tabs: [BrowserTab] = []
     private(set) var pendingApprovals: [ApprovalRequest] = []
     private(set) var tasks: [AgentTask] = []
+    private(set) var clients: [MCPClientDirectory.Summary] = []
+    private(set) var serverPort: UInt16?
 
     var isCommandBarPresented = false
     var isTriagePresented = false
     var isInboxPresented = false
+    var isClientsPresented = false
 
     private let store: BrowserStore
     private let approvals: ApprovalService
     private let runner: AgentRunner
+    private let auditLog: AuditLog
+    private let clientStore: any MCPClientStore
+    private let serverEnabled: Bool
+    private var directory: MCPClientDirectory?
+    private var server: MCPHTTPServer?
 
     init(
         store: BrowserStore = BrowserStore(),
         approvals: ApprovalService = ApprovalService(),
-        runner: AgentRunner? = nil
+        runner: AgentRunner? = nil,
+        auditLog: AuditLog = AuditLog(),
+        clientStore: any MCPClientStore = KeychainClientStore(),
+        serverEnabled: Bool = true
     ) {
         self.store = store
         self.approvals = approvals
+        self.auditLog = auditLog
+        self.clientStore = clientStore
+        self.serverEnabled = serverEnabled
         self.runner = runner ?? AgentRunner(
             policy: PermissionPolicy(),
             approvals: approvals,
-            audit: AuditLog(),
+            audit: auditLog,
             driver: WebKitPageDriver(engine: WebKitEngine(isBackground: true))
         )
     }
@@ -45,6 +59,12 @@ final class AppModel {
         if spaces.isEmpty {
             await seedWorkspace()
         }
+        if directory == nil {
+            directory = try? await MCPClientDirectory(store: clientStore)
+        }
+        if serverEnabled, server == nil, let directory {
+            await startServer(directory: directory)
+        }
         await refresh()
     }
 
@@ -53,6 +73,21 @@ final class AppModel {
         tabs = await store.tabs
         pendingApprovals = await approvals.pending()
         tasks = await runner.allTasks
+        clients = await directory?.summaries() ?? []
+    }
+
+    func issueClient(name: String) async throws -> String {
+        guard let directory else {
+            throw MCPClientDirectoryError.invalidName
+        }
+        let token = try await directory.issue(name: name)
+        await refresh()
+        return token
+    }
+
+    func revokeClient(id: String) async throws {
+        try await directory?.revoke(id: id)
+        await refresh()
     }
 
     func approve(_ request: ApprovalRequest, scope: ApprovalScope) async {
@@ -85,6 +120,20 @@ final class AppModel {
     func archiveStale() async {
         _ = await store.archiveStaleTabs(now: Date())
         await refresh()
+    }
+
+    private func startServer(directory: MCPClientDirectory) async {
+        let dispatcher = MCPDispatcher(
+            authenticator: directory,
+            runner: runner,
+            store: store,
+            auditLog: auditLog
+        )
+        guard let server = try? MCPHTTPServer(dispatcher: dispatcher) else {
+            return
+        }
+        self.server = server
+        serverPort = try? await server.start()
     }
 
     private func resume(taskFor request: ApprovalRequest) async {
