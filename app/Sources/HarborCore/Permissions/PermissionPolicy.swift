@@ -1,6 +1,6 @@
 import Foundation
 
-public enum ActionClass: String, CaseIterable, Sendable {
+public enum ActionClass: String, CaseIterable, Codable, Sendable {
     case read
     case navigate
     case click
@@ -23,12 +23,12 @@ public enum ActionClass: String, CaseIterable, Sendable {
     }
 }
 
-public enum Grant: Equatable, Sendable {
+public enum Grant: Codable, Equatable, Sendable {
     case allow
     case deny
 }
 
-public struct PermissionRule: Equatable, Sendable {
+public struct PermissionRule: Codable, Equatable, Sendable {
     public static let anySite = "*"
 
     public let site: String
@@ -48,7 +48,7 @@ public enum Decision: Equatable, Sendable {
     case requireApproval
 }
 
-public struct PermissionPolicy: Equatable, Sendable {
+public struct PermissionPolicy: Codable, Equatable, Sendable {
     public let rules: [PermissionRule]
 
     public init(rules: [PermissionRule] = []) {

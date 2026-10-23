@@ -27,11 +27,25 @@ public actor MCPDispatcher {
     public static let protocolVersion = "2025-06-18"
     public static let allowedHostNames: Set<String> = ["127.0.0.1", "localhost"]
 
-    private let clients: [MCPClient]
+    private let authenticator: any MCPClientAuthenticating
     private let runner: AgentRunner
     private let store: BrowserStore
     private let auditLog: AuditLog
     private let now: @Sendable () -> Date
+
+    public init(
+        authenticator: any MCPClientAuthenticating,
+        runner: AgentRunner,
+        store: BrowserStore,
+        auditLog: AuditLog,
+        now: @escaping @Sendable () -> Date = { Date() }
+    ) {
+        self.authenticator = authenticator
+        self.runner = runner
+        self.store = store
+        self.auditLog = auditLog
+        self.now = now
+    }
 
     public init(
         clients: [MCPClient],
@@ -40,18 +54,20 @@ public actor MCPDispatcher {
         auditLog: AuditLog,
         now: @escaping @Sendable () -> Date = { Date() }
     ) {
-        self.clients = clients
-        self.runner = runner
-        self.store = store
-        self.auditLog = auditLog
-        self.now = now
+        self.init(
+            authenticator: StaticClients(clients),
+            runner: runner,
+            store: store,
+            auditLog: auditLog,
+            now: now
+        )
     }
 
     public func handle(hostHeader: String?, authorization: String?, body: Data) async -> MCPResponse {
         guard let host = Self.hostName(hostHeader), Self.allowedHostNames.contains(host) else {
             return Self.httpError(403, code: -32000, message: "host not allowed")
         }
-        guard let client = authenticate(authorization) else {
+        guard let client = await authenticator.authenticate(authorization) else {
             return Self.httpError(401, code: -32001, message: "unauthorized")
         }
         guard body.count <= Self.maxBodyBytes else {
@@ -166,14 +182,6 @@ public actor MCPDispatcher {
             return nil
         }
         return task.ownerID == client.id ? task : nil
-    }
-
-    private func authenticate(_ authorization: String?) -> MCPClient? {
-        guard let authorization, authorization.hasPrefix("Bearer ") else {
-            return nil
-        }
-        let candidate = String(authorization.dropFirst("Bearer ".count))
-        return clients.first { AccessToken.matches(candidate, digest: $0.tokenDigest) }
     }
 
     private func recordCall(_ name: String, client: MCPClient, succeeded: Bool) async {
