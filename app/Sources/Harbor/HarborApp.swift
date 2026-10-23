@@ -1,7 +1,16 @@
+import AppKit
 import SwiftUI
+
+final class HarborAppDelegate: NSObject, NSApplicationDelegate {
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        NSApp.setActivationPolicy(.regular)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+}
 
 @main
 struct HarborApp: App {
+    @NSApplicationDelegateAdaptor(HarborAppDelegate.self) private var delegate
     @State private var model = AppModel()
 
     var body: some Scene {
@@ -9,5 +18,6 @@ struct HarborApp: App {
             ShellView(model: model)
         }
         .windowStyle(.hiddenTitleBar)
+        .defaultSize(width: 1440, height: 900)
     }
 }

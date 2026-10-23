@@ -9,6 +9,7 @@ struct ChromeHeaderView: View {
     let windowWidth: CGFloat
     let sidebarVisible: Bool
     let toggleSidebar: () -> Void
+    let openCommandBar: () -> Void
 
     var body: some View {
         HStack(spacing: 8) {
@@ -65,6 +66,9 @@ struct ChromeHeaderView: View {
         .frame(height: 32)
         .background(HarborColor.surfaceLowest, in: RoundedRectangle(cornerRadius: 8))
         .overlay(RoundedRectangle(cornerRadius: 8).stroke(HarborColor.hairline))
+        .contentShape(Rectangle())
+        .onTapGesture(perform: openCommandBar)
+        .accessibilityIdentifier("omnibar")
     }
 
     private var addressText: AttributedString {

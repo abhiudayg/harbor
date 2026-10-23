@@ -8,6 +8,11 @@ final class AppModel {
     private(set) var spaces: [Space] = []
     private(set) var tabs: [BrowserTab] = []
     private(set) var pendingApprovals: [ApprovalRequest] = []
+    private(set) var tasks: [AgentTask] = []
+
+    var isCommandBarPresented = false
+    var isTriagePresented = false
+    var isInboxPresented = false
 
     private let store: BrowserStore
     private let approvals: ApprovalService
@@ -28,6 +33,14 @@ final class AppModel {
         )
     }
 
+    var spaceNames: [UUID: String] {
+        Dictionary(uniqueKeysWithValues: spaces.map { ($0.id, $0.name) })
+    }
+
+    var activeSpaceName: String {
+        spaces.first?.name ?? "Harbor"
+    }
+
     func start() async {
         if spaces.isEmpty {
             await seedWorkspace()
@@ -39,6 +52,7 @@ final class AppModel {
         spaces = await store.spaces
         tabs = await store.tabs
         pendingApprovals = await approvals.pending()
+        tasks = await runner.allTasks
     }
 
     func approve(_ request: ApprovalRequest, scope: ApprovalScope) async {
@@ -53,9 +67,29 @@ final class AppModel {
         await refresh()
     }
 
+    func keep(_ tab: BrowserTab) async {
+        try? await store.setPinned(true, tabID: tab.id)
+        await refresh()
+    }
+
+    func archive(_ tab: BrowserTab) async {
+        try? await store.archive(tabID: tab.id)
+        await refresh()
+    }
+
+    func close(_ tab: BrowserTab) async {
+        try? await store.close(tabID: tab.id)
+        await refresh()
+    }
+
+    func archiveStale() async {
+        _ = await store.archiveStaleTabs(now: Date())
+        await refresh()
+    }
+
     private func resume(taskFor request: ApprovalRequest) async {
-        let tasks = await runner.tasks.values
-        guard let waiting = tasks.first(where: { $0.state == .awaitingApproval(request.id) }) else {
+        let all = await runner.allTasks
+        guard let waiting = all.first(where: { $0.state == .awaitingApproval(request.id) }) else {
             return
         }
         _ = try? await runner.resume(waiting.id)
