@@ -17,10 +17,15 @@ struct CommandBarView: View {
                 .frame(width: 620)
                 .padding(.top, 120)
         }
-        .onKeyPress(.escape) {
-            model.isCommandBarPresented = false
-            return .handled
-        }
+        .background(cancelButton)
+    }
+
+    private var cancelButton: some View {
+        Button("Close") { model.isCommandBarPresented = false }
+            .keyboardShortcut(.cancelAction)
+            .frame(width: 0, height: 0)
+            .opacity(0)
+            .accessibilityHidden(true)
     }
 
     private var palette: some View {
