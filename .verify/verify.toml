@@ -47,6 +47,11 @@ run = "sh .verify/scripts/feature_coverage.sh .verify/features/mcp-transport.md 
 working_dir = "."
 
 [[command]]
+name = "ui-live"
+run = "sh .verify/ui-live.sh"
+working_dir = "."
+
+[[command]]
 name = "security"
 run = "sh .verify/security.sh"
 working_dir = "."

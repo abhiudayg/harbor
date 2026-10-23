@@ -23,8 +23,8 @@ run_step() {
 }
 
 case "$PHASE" in
-    all) steps="doctor build unit integration functional ui hurl features coverage security" ;;
-    doctor|build|unit|integration|functional|ui|hurl|features|coverage|security) steps="$PHASE" ;;
+    all) steps="doctor build unit integration functional ui hurl features coverage ui-live security" ;;
+    doctor|build|unit|integration|functional|ui|hurl|features|coverage|ui-live|security) steps="$PHASE" ;;
     *) echo "unknown phase: $PHASE"; exit 2 ;;
 esac
 
