@@ -25,8 +25,8 @@ struct AppModelTests {
 
         await model.start()
 
-        #expect(model.spaces.map(\.name) == ["Research"])
-        #expect(model.tabs.count == 9)
+        #expect(model.spaces.map(\.name) == ["Research", "Systems"])
+        #expect(model.tabs.count == 10)
         #expect(model.tabs.filter(\.isPinned).count == 6)
     }
 
@@ -37,7 +37,7 @@ struct AppModelTests {
         await model.start()
         await model.start()
 
-        #expect(model.tabs.count == 9)
+        #expect(model.tabs.count == 10)
     }
 
     @Test("a pending approval appears in the model and approving it completes the held task")
@@ -93,7 +93,7 @@ struct AppModelTests {
 
         await model.close(tab)
 
-        #expect(model.tabs.count == 8)
+        #expect(model.tabs.count == 9)
         #expect(model.tabs.contains { $0.id == tab.id } == false)
     }
 

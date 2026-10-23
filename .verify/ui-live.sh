@@ -68,13 +68,13 @@ expect_text() {
     fi
 }
 
-expect_text "The Architecture"
+expect_text "Cognitive Ergonomics"
 expect_text "PINNED"
-expect_text "Readwise Reader"
-expect_text "Harbor Companion"
+expect_text "Research"
+expect_text "TAB GROUPS"
 expect_text "harbor://reading"
 expect_text "SPACES"
-expect_text "COLLECTIONS"
+expect_text "Systems"
 
 if printf '%s' "$tree" | grep -q "ACTIONS"; then
     echo "FAIL command bar was already open at launch"

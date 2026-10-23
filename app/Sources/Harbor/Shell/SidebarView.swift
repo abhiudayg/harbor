@@ -11,8 +11,8 @@ struct SidebarView: View {
                     SpacesList(spaces: model.spaces)
                     SidebarSectionHeader(title: "Pinned", count: String(pinnedTabs.count), hint: "⌘1–6")
                     VStack(spacing: 2) {
-                        ForEach(pinnedTabs) { tab in
-                            SidebarTabRow(tab: tab)
+                        ForEach(Array(pinnedTabs.enumerated()), id: \.element.id) { index, tab in
+                            SidebarTabRow(tab: tab, shortcut: index < 6 ? "⌘\(index + 1)" : nil)
                         }
                     }
                     SidebarSectionHeader(title: "Today (\(todayTabs.count))", trailingSymbol: "icloud.and.arrow.up")
@@ -21,9 +21,8 @@ struct SidebarView: View {
                             SidebarTabRow(tab: tab)
                         }
                     }
-                    SidebarSectionHeader(title: "Collections")
-                    CollectionFolderRow(title: "Typographic Systems", count: 2, children: ["Klim Type Foundry", "Grilli Type Specimen"])
-                    CollectionFolderRow(title: "Systems Architecture", count: 4, children: [])
+                    SidebarSectionHeader(title: "Tab Groups")
+                    CollectionFolderRow(title: "Systems", count: 2, children: ["Vector Math Engine", "Local Runtimes"])
                     ArchiveRow(count: archivedCount)
                 }
                 .padding(.horizontal, 8)
@@ -31,7 +30,7 @@ struct SidebarView: View {
                 .padding(.bottom, 8)
             }
             .scrollIndicators(.never)
-            ApprovalDock(request: model.pendingApprovals.first) { request, scope in
+            ApprovalDock(status: runningStatus, request: model.pendingApprovals.first) { request, scope in
                 await model.approve(request, scope: scope)
             } onDeny: { request in
                 await model.deny(request)
@@ -49,6 +48,12 @@ struct SidebarView: View {
         model.tabs
             .filter { !$0.isPinned && $0.state != .archived }
             .map(SidebarTab.init(tab:))
+    }
+
+    private var runningStatus: String {
+        let running = model.tasks.filter { $0.state == .running }.count
+        let awaiting = model.pendingApprovals.count
+        return "\(running) running · \(awaiting) awaiting Approval"
     }
 
     private var archivedCount: Int {
@@ -173,6 +178,7 @@ private struct SidebarSectionHeader: View {
 
 private struct SidebarTabRow: View {
     let tab: SidebarTab
+    var shortcut: String?
 
     var body: some View {
         HStack(spacing: 8) {
@@ -185,6 +191,11 @@ private struct SidebarTabRow: View {
                 .foregroundStyle(tab.isActive ? HarborColor.primary : HarborColor.onSurfaceVariant)
                 .lineLimit(1)
             Spacer(minLength: 4)
+            if let shortcut {
+                Text(shortcut)
+                    .font(HarborTypography.mono(size: 9))
+                    .foregroundStyle(HarborColor.outline)
+            }
         }
         .padding(.horizontal, 8)
         .frame(height: 32)
@@ -255,14 +266,28 @@ private struct ArchiveRow: View {
 }
 
 private struct ApprovalDock: View {
+    let status: String
     let request: ApprovalRequest?
     let onApprove: (ApprovalRequest, ApprovalScope) async -> Void
     let onDeny: (ApprovalRequest) async -> Void
 
     var body: some View {
         VStack(spacing: 8) {
+            Text(status)
+                .font(HarborTypography.mono(size: 10))
+                .foregroundStyle(HarborColor.onSurfaceVariant)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 4)
             if let request {
                 approvalCard(request)
+            } else {
+                Text("No approvals pending")
+                    .font(HarborTypography.chrome(size: 11))
+                    .foregroundStyle(HarborColor.onSurfaceVariant)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(8)
+                    .background(HarborColor.surfaceLowest, in: RoundedRectangle(cornerRadius: 8))
+                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(HarborColor.hairline))
             }
             HStack {
                 Image(systemName: "arrow.down.circle")
