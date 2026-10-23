@@ -5,21 +5,42 @@ import WebKit
 public final class WebKitEngine {
     public let webView: WKWebView
     private let navigationDelegate = NavigationWaiter()
+    private let contentRules: Task<Bool, Never>
 
-    public init(isBackground: Bool) {
+    public init(isBackground: Bool, contentBlocking: ContentBlockingPolicy = .standard) {
         let configuration = WKWebViewConfiguration()
         configuration.websiteDataStore = isBackground
             ? WKWebsiteDataStore.nonPersistent()
             : WKWebsiteDataStore.default()
         webView = WKWebView(frame: .zero, configuration: configuration)
         webView.navigationDelegate = navigationDelegate
+        let controller = configuration.userContentController
+        contentRules = Task { @MainActor in
+            guard let json = contentBlocking.ruleListJSON,
+                  let list = try? await WKContentRuleListStore.default().compileContentRuleList(
+                      forIdentifier: "harbor-content-blocking",
+                      encodedContentRuleList: json
+                  )
+            else {
+                return false
+            }
+            controller.add(list)
+            return true
+        }
     }
 
     public var isPersistent: Bool {
         webView.configuration.websiteDataStore.isPersistent
     }
 
+    public var isContentBlocking: Bool {
+        get async {
+            await contentRules.value
+        }
+    }
+
     public func load(_ url: URL, restrictToPublicWeb: Bool = false) async throws {
+        _ = await contentRules.value
         navigationDelegate.restrictToPublicWeb = restrictToPublicWeb
         try await navigationDelegate.waitForNavigation {
             webView.load(URLRequest(url: url))
@@ -27,6 +48,7 @@ public final class WebKitEngine {
     }
 
     public func loadHTML(_ html: String, baseURL: URL? = nil) async throws {
+        _ = await contentRules.value
         navigationDelegate.restrictToPublicWeb = false
         try await navigationDelegate.waitForNavigation {
             webView.loadHTMLString(html, baseURL: baseURL)
