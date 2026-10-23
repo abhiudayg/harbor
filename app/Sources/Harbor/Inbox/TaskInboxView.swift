@@ -80,7 +80,7 @@ struct TaskInboxView: View {
 
     private func taskRow(_ task: AgentTask) -> some View {
         VStack(alignment: .leading, spacing: 3) {
-            Text(task.steps.first.map(Self.label) ?? "Task")
+            Text(task.steps.first.map(\.displayName) ?? "Task")
                 .font(HarborTypography.chrome(size: 13, weight: .medium))
                 .foregroundStyle(HarborColor.onSurface)
                 .lineLimit(1)
@@ -99,15 +99,31 @@ struct TaskInboxView: View {
     private var detail: some View {
         if let task = selected {
             VStack(alignment: .leading, spacing: 14) {
-                Text(task.steps.first.map(Self.label) ?? "Task")
+                Text(task.steps.first.map(\.displayName) ?? "Task")
                     .font(HarborTypography.editorial(size: 22, weight: .medium))
                     .foregroundStyle(HarborColor.onSurface)
-                Text("Site: \(task.site)")
+                Text("Domain: \(task.site)")
                     .font(HarborTypography.mono(size: 12))
                     .foregroundStyle(HarborColor.onSurfaceVariant)
+                Text("STAGE \(min(task.cursor + 1, task.steps.count)) / \(task.steps.count)")
+                    .font(HarborTypography.mono(size: 10, weight: .semibold))
+                    .tracking(1)
+                    .foregroundStyle(HarborColor.primary)
+                if case .awaitingApproval = task.state {
+                    Text("Paused at Step \(task.cursor + 1)")
+                        .font(HarborTypography.chrome(size: 12, weight: .medium))
+                        .foregroundStyle(HarborColor.approvalText)
+                }
                 Text("State: \(Self.stateLabel(task.state))")
                     .font(HarborTypography.chrome(size: 12))
                     .foregroundStyle(HarborColor.onSurface)
+                scopeSection
+                if !task.state.isTerminal {
+                    Button("Stop & abort") { Task { await model.stop(task) } }
+                        .buttonStyle(.bordered)
+                        .tint(HarborColor.approvalText)
+                        .accessibilityIdentifier("inbox-stop")
+                }
                 if case .awaitingApproval = task.state, let request = pendingRequest(for: task) {
                     approvalCard(request)
                 }
@@ -133,6 +149,26 @@ struct TaskInboxView: View {
                 .font(HarborTypography.chrome(size: 13))
                 .foregroundStyle(HarborColor.onSurfaceVariant)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+    }
+
+    private var scopeSection: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("AUTHORIZED SITES")
+                .font(HarborTypography.mono(size: 10, weight: .semibold))
+                .tracking(1)
+                .foregroundStyle(HarborColor.onSurfaceVariant)
+            Text(model.authorizedSites.isEmpty ? "None. Every action is denied or needs approval." : model.authorizedSites.joined(separator: ", "))
+                .font(HarborTypography.chrome(size: 12))
+                .foregroundStyle(HarborColor.onSurface)
+            Text("PERMITTED ACTIONS")
+                .font(HarborTypography.mono(size: 10, weight: .semibold))
+                .tracking(1)
+                .foregroundStyle(HarborColor.onSurfaceVariant)
+                .padding(.top, 4)
+            Text(model.permittedActions.isEmpty ? "None granted. Sensitive actions ask first." : model.permittedActions.joined(separator: ", "))
+                .font(HarborTypography.chrome(size: 12))
+                .foregroundStyle(HarborColor.onSurface)
         }
     }
 
@@ -165,18 +201,6 @@ struct TaskInboxView: View {
         return model.pendingApprovals.first { $0.id == id }
     }
 
-    private static func label(_ step: AgentStep) -> String {
-        switch step {
-        case .navigate(let url): "Open \(url.host ?? url.absoluteString)"
-        case .readPage: "Read page"
-        case .click: "Click element"
-        case .typeText: "Type into field"
-        case .submitForm: "Submit form"
-        case .sendMessage: "Send message"
-        case .download: "Download file"
-        case .fillCredential: "Fill credential"
-        }
-    }
 
     private static func actionLabel(_ action: ActionClass) -> String {
         switch action {

@@ -47,6 +47,19 @@ struct CommandBarView: View {
                     .overlay(RoundedRectangle(cornerRadius: 5).stroke(HarborColor.hairline))
             }
             .padding(14)
+            HStack(spacing: 6) {
+                ForEach(model.spaces) { space in
+                    Text(space.name)
+                        .font(HarborTypography.chrome(size: 11, weight: .medium))
+                        .foregroundStyle(HarborColor.onSurfaceVariant)
+                        .padding(.horizontal, 8)
+                        .frame(height: 22)
+                        .background(HarborColor.surfaceLow, in: RoundedRectangle(cornerRadius: 6))
+                }
+                Spacer()
+            }
+            .padding(.horizontal, 14)
+            .padding(.bottom, 10)
             Divider().overlay(HarborColor.outlineVariant.opacity(0.4))
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
@@ -80,10 +93,34 @@ struct CommandBarView: View {
                 .padding(12)
             }
             .frame(maxHeight: 420)
+            Divider().overlay(HarborColor.outlineVariant.opacity(0.4))
+            HStack(spacing: 14) {
+                footerHint("Tab", "navigate")
+                footerHint("↵", "select")
+                footerHint("Esc", "close")
+                Spacer()
+            }
+            .padding(.horizontal, 14)
+            .frame(height: 32)
+            .background(HarborColor.surfaceLow)
         }
         .background(HarborColor.surfaceLowest, in: RoundedRectangle(cornerRadius: 12))
         .overlay(RoundedRectangle(cornerRadius: 12).stroke(HarborColor.outlineVariant.opacity(0.5)))
         .shadow(color: .black.opacity(0.18), radius: 24, y: 12)
+    }
+
+    private func footerHint(_ key: String, _ label: String) -> some View {
+        HStack(spacing: 6) {
+            Text(key)
+                .font(HarborTypography.mono(size: 10))
+                .padding(.horizontal, 5)
+                .frame(height: 16)
+                .background(HarborColor.paper, in: RoundedRectangle(cornerRadius: 4))
+                .overlay(RoundedRectangle(cornerRadius: 4).stroke(HarborColor.hairline))
+            Text(label)
+                .font(HarborTypography.chrome(size: 11))
+                .foregroundStyle(HarborColor.onSurfaceVariant)
+        }
     }
 
     private func group<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
