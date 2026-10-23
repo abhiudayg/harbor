@@ -17,6 +17,7 @@ final class AppModel {
     var isTriagePresented = false
     var isInboxPresented = false
     var isClientsPresented = false
+    var isAssistantPresented = false
 
     private let store: BrowserStore
     private let approvals: ApprovalService
@@ -177,30 +178,42 @@ final class AppModel {
         _ = try? await runner.resume(waiting.id)
     }
 
+
     private func seedWorkspace() async {
-        guard let research = try? await store.createSpace(named: "Research") else {
+        guard let research = try? await store.createSpace(named: "Research"),
+              let systems = try? await store.createSpace(named: "Systems")
+        else {
             return
         }
-        let samples: [(title: String, address: String, pinned: Bool)] = [
-            ("Figma - Harbor Shell", "https://figma.com", true),
-            ("Linear - Sprint 14", "https://linear.app", true),
-            ("GitHub - core-runtime", "https://github.com", true),
-            ("Notion - RFC Specs", "https://notion.so", true),
-            ("Readwise Reader", "https://read.readwise.io", true),
-            ("Claude / Research", "https://claude.ai", true),
-            ("Distributed Consensus in Paxos", "https://example.com/paxos", false),
-            ("HN: SQLite Internals Deep Dive", "https://news.ycombinator.com", false),
-            ("PostgreSQL 17 Release Notes", "https://postgresql.org", false),
+        let pinned: [(String, String)] = [
+            ("ArXiv: LLM Memory", "https://arxiv.org/abs/2402.19"),
+            ("Kernel RFC #412", "https://lwn.net/Articles/412"),
+            ("Figma Design Tokens", "https://figma.com/file/tokens"),
+            ("Linear Core Backlog", "https://linear.app/harbor/core"),
+            ("Postgres Indexing", "https://postgresql.org/docs/indexes"),
+            ("Stripe API Reference", "https://stripe.com/docs/api"),
         ]
-        for sample in samples {
-            guard let url = URL(string: sample.address),
-                  let tab = try? await store.openTab(url: url, title: sample.title, in: research.id, at: Date())
+        let today: [(String, String)] = [
+            ("Cognitive Ergonomics & Screen Restraint", "https://harbor.local/reading/cognitive-ergonomics"),
+            ("Distributed Consensus Protocols", "https://example.com/consensus"),
+            ("Typography in Digital Tools", "https://example.com/typography"),
+        ]
+        for sample in pinned {
+            guard let url = URL(string: sample.1),
+                  let tab = try? await store.openTab(url: url, title: sample.0, in: research.id, at: Date())
             else {
                 continue
             }
-            if sample.pinned {
-                try? await store.setPinned(true, tabID: tab.id)
+            try? await store.setPinned(true, tabID: tab.id)
+        }
+        for sample in today {
+            guard let url = URL(string: sample.1) else {
+                continue
             }
+            _ = try? await store.openTab(url: url, title: sample.0, in: research.id, at: Date())
+        }
+        if let url = URL(string: "https://example.com/vector-math") {
+            _ = try? await store.openTab(url: url, title: "Vector Math Engine", in: systems.id, at: Date())
         }
     }
 }

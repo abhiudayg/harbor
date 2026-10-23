@@ -14,7 +14,8 @@ struct ShellView: View {
                     windowWidth: width,
                     sidebarVisible: sidebarVisible,
                     toggleSidebar: { sidebarRequested.toggle() },
-                    openCommandBar: { model.isCommandBarPresented = true }
+                    openCommandBar: { model.isCommandBarPresented = true },
+                    toggleAssistant: { model.isAssistantPresented.toggle() }
                 )
                 Divider()
                     .overlay(HarborColor.outlineVariant.opacity(0.3))
@@ -71,7 +72,7 @@ struct ShellView: View {
             HStack(spacing: 0) {
                 ReaderArticleView()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                if companionVisible {
+                if companionVisible && model.isAssistantPresented {
                     Divider()
                         .overlay(HarborColor.outlineVariant.opacity(0.3))
                     CompanionPanelView(model: model)

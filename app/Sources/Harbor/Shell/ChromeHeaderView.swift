@@ -10,6 +10,7 @@ struct ChromeHeaderView: View {
     let sidebarVisible: Bool
     let toggleSidebar: () -> Void
     let openCommandBar: () -> Void
+    let toggleAssistant: () -> Void
 
     var body: some View {
         HStack(spacing: 8) {
@@ -76,7 +77,7 @@ struct ChromeHeaderView: View {
         prefix.foregroundColor = HarborColor.onSurfaceVariant.opacity(0.6)
         var page = AttributedString("reading")
         page.foregroundColor = HarborColor.accentTeal
-        var path = AttributedString("/the-architecture-of-open-systems")
+        var path = AttributedString("/cognitive-ergonomics")
         path.foregroundColor = HarborColor.onSurface
         return prefix + page + path
     }
@@ -92,6 +93,8 @@ struct ChromeHeaderView: View {
         .padding(.horizontal, 6)
         .padding(.vertical, 2)
         .background(HarborColor.surfaceLow, in: RoundedRectangle(cornerRadius: 5))
+        .contentShape(Rectangle())
+        .onTapGesture(perform: toggleAssistant)
         .overlay(RoundedRectangle(cornerRadius: 5).stroke(HarborColor.outlineVariant.opacity(0.3)))
     }
 
