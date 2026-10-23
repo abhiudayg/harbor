@@ -1,0 +1,8 @@
+**/.agent-brain-id
+docs/prd/
+worktrees/
+app/.build
+.build/
+.swiftpm/
+.verify/artifacts/
+.DS_Store
