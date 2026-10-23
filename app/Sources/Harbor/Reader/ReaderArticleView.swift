@@ -1,14 +1,20 @@
+import AppKit
 import SwiftUI
 
 struct ReaderArticleView: View {
     static let measure: CGFloat = 640
+
+    private let article = ReaderArticle.cognitiveErgonomics
+    @State private var isSaved = false
+    @State private var usesSansBody = false
+    @State private var didExport = false
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
                 meta
                     .padding(.bottom, 14)
-                Text("The Architecture of Quiet Interfaces: Why Power Users Crave Visual Restraint")
+                Text(article.title)
                     .font(HarborTypography.editorial(size: 34, weight: .medium))
                     .foregroundStyle(HarborColor.onSurface)
                     .fixedSize(horizontal: false, vertical: true)
@@ -17,12 +23,11 @@ struct ReaderArticleView: View {
                     .padding(.bottom, 12)
                 actions
                     .padding(.bottom, 28)
-                body(paragraph: Self.opening)
-                body(paragraph: Self.craftsman)
+                ForEach(article.paragraphs, id: \.self) { paragraph in
+                    body(paragraph: paragraph)
+                }
                 pullQuote
-                body(paragraph: Self.chrome)
                 metrics
-                body(paragraph: Self.palette)
                 codeBlock
                 footnote
                 readingFooter
@@ -38,11 +43,11 @@ struct ReaderArticleView: View {
 
     private var meta: some View {
         HStack(spacing: 8) {
-            Text("RESEARCH ARCHIVE")
+            Text(article.kicker.uppercased())
             Text("·")
-            Text("PUBLISHED NOV 14, 2024")
+            Text(article.published.uppercased())
             Text("·")
-            Text("9 MIN READ")
+            Text(article.readingTime.uppercased())
         }
         .font(HarborTypography.mono(size: 10, weight: .medium))
         .tracking(1)
@@ -51,9 +56,9 @@ struct ReaderArticleView: View {
 
     private var byline: some View {
         HStack(spacing: 8) {
-            Text("Dr. Elena Vance")
+            Text(article.author)
             Text("·")
-            Text("Reviewed by Systems Guild")
+            Text("Reviewed by \(article.reviewer)")
         }
         .font(HarborTypography.chrome(size: 13))
         .foregroundStyle(HarborColor.onSurfaceVariant)
@@ -61,22 +66,35 @@ struct ReaderArticleView: View {
 
     private var actions: some View {
         HStack(spacing: 6) {
-            ForEach(["Save", "Type", "Export"], id: \.self) { title in
-                Text(title)
-                    .font(HarborTypography.chrome(size: 11, weight: .medium))
-                    .foregroundStyle(HarborColor.primary)
-                    .padding(.horizontal, 8)
-                    .frame(height: 24)
-                    .background(HarborColor.surfaceLowest, in: RoundedRectangle(cornerRadius: 6))
-                    .overlay(RoundedRectangle(cornerRadius: 6).stroke(HarborColor.hairline))
-            }
+            actionButton(isSaved ? "Saved" : "Save") { isSaved.toggle() }
+            actionButton("Type") { usesSansBody.toggle() }
+            actionButton(didExport ? "Copied" : "Export") { export() }
             Spacer()
         }
     }
 
+    private func actionButton(_ title: String, perform: @escaping () -> Void) -> some View {
+        Button(action: perform) {
+            Text(title)
+                .font(HarborTypography.chrome(size: 11, weight: .medium))
+                .foregroundStyle(HarborColor.primary)
+                .padding(.horizontal, 8)
+                .frame(height: 24)
+                .background(HarborColor.surfaceLowest, in: RoundedRectangle(cornerRadius: 6))
+                .overlay(RoundedRectangle(cornerRadius: 6).stroke(HarborColor.hairline))
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func export() {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(article.plainText, forType: .string)
+        didExport = true
+    }
+
     private func body(paragraph: String) -> some View {
         Text(paragraph)
-            .font(HarborTypography.editorial(size: 18))
+            .font(usesSansBody ? HarborTypography.chrome(size: 16) : HarborTypography.editorial(size: 18))
             .lineSpacing(7)
             .foregroundStyle(HarborColor.onSurface)
             .padding(.bottom, 22)
@@ -85,11 +103,11 @@ struct ReaderArticleView: View {
 
     private var pullQuote: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("“Restraint is not the absence of energy; it is the deliberate containment of noise so that signal can resonate without friction.”")
+            Text("“\(article.pullQuote)”")
                 .font(HarborTypography.editorial(size: 20))
                 .italic()
                 .foregroundStyle(HarborColor.onSurface)
-            Text("— Systems Architecture Monograph, Vol. IV")
+            Text("— \(article.pullQuoteSource)")
                 .font(HarborTypography.mono(size: 11))
                 .foregroundStyle(HarborColor.onSurfaceVariant)
         }
@@ -105,22 +123,23 @@ struct ReaderArticleView: View {
 
     private var metrics: some View {
         HStack(alignment: .top, spacing: 12) {
-            metricCard(index: "Metric 01", title: "Cognitive Saccade Latency", lines: ["Baseline: 180ms", "Harbor: 112ms"])
-            metricCard(index: "Metric 02", title: "Spatial Working Memory", lines: ["Retention rate", "94.2% stability"])
+            ForEach(article.metrics) { metric in
+                metricCard(metric)
+            }
         }
         .padding(.bottom, 22)
     }
 
-    private func metricCard(index: String, title: String, lines: [String]) -> some View {
+    private func metricCard(_ metric: ReaderArticle.Metric) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(index.uppercased())
+            Text(metric.index.uppercased())
                 .font(HarborTypography.mono(size: 10, weight: .semibold))
                 .tracking(1)
                 .foregroundStyle(HarborColor.primary)
-            Text(title)
+            Text(metric.title)
                 .font(HarborTypography.chrome(size: 13, weight: .semibold))
                 .foregroundStyle(HarborColor.onSurface)
-            ForEach(lines, id: \.self) { line in
+            ForEach(metric.lines, id: \.self) { line in
                 Text(line)
                     .font(HarborTypography.chrome(size: 12))
                     .foregroundStyle(HarborColor.onSurfaceVariant)
@@ -134,10 +153,10 @@ struct ReaderArticleView: View {
 
     private var codeBlock: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text("ergonomics.config.ts · TypeScript")
+            Text(article.codeCaption)
                 .font(HarborTypography.mono(size: 10, weight: .medium))
                 .foregroundStyle(HarborColor.onSurfaceVariant)
-            Text("interface ViewportConstraint { maxLine: \"68ch\"; divider: \"hairline-1px\"; shadows: false; accent: \"#b45309\"; success: \"#005823\"; error: \"#ba1a1a\"; }")
+            Text(article.codeSample)
                 .font(HarborTypography.mono(size: 11))
                 .foregroundStyle(HarborColor.onSurface)
                 .fixedSize(horizontal: false, vertical: true)
@@ -149,10 +168,14 @@ struct ReaderArticleView: View {
     }
 
     private var footnote: some View {
-        Text("[1] The Disappearance of the Browser Frame")
-            .font(HarborTypography.mono(size: 11))
-            .foregroundStyle(HarborColor.onSurfaceVariant)
-            .padding(.bottom, 16)
+        VStack(alignment: .leading, spacing: 2) {
+            ForEach(Array(article.footnotes.enumerated()), id: \.offset) { index, note in
+                Text("[\(index + 1)] \(note)")
+                    .font(HarborTypography.mono(size: 11))
+                    .foregroundStyle(HarborColor.onSurfaceVariant)
+            }
+        }
+        .padding(.bottom, 16)
     }
 
     private var readingFooter: some View {
@@ -164,7 +187,7 @@ struct ReaderArticleView: View {
                     .font(HarborTypography.chrome(size: 12, weight: .medium))
                     .foregroundStyle(HarborColor.onSurface)
             }
-            Text("Next in queue: The Disappearance of the Browser Frame")
+            Text("Next in queue: \(article.nextInQueue)")
                 .font(HarborTypography.chrome(size: 12))
                 .foregroundStyle(HarborColor.onSurfaceVariant)
         }
@@ -173,12 +196,4 @@ struct ReaderArticleView: View {
         .background(HarborColor.surfaceLowest, in: RoundedRectangle(cornerRadius: 8))
         .overlay(RoundedRectangle(cornerRadius: 8).stroke(HarborColor.hairline))
     }
-
-    static let opening = "Every decorative flourish introduced to a technical application carries a persistent thermodynamic cognitive tax. When an interface relies on vibrating gradients, erratic multi-tiered elevation shadows, and unmetered notifications, the user's executive function spends precious working memory constantly parsing chrome rather than processing thought."
-
-    static let craftsman = "The ethos of desktop computing has drifted toward superficial theatrics. Yet the master craftsman’s bench is not lined with polished brass or mirrored chrome; it is constructed of dense, oiled birch, marked only by hairline measurements and functional recesses where tools can rest without slipping."
-
-    static let chrome = "In Harbor, depth is never faked with sprawling blurred drop shadows. Boundaries are established exclusively through tonal stepping and physical single-pixel hairlines. When visual divisions are predictable and razor-sharp, the eye traverses workspaces with zero hesitation."
-
-    static let palette = "By restricting the visual spectrum to a foundational warm paper neutral, a deliberate harbor teal accent, and purposeful semantic state indicators, the screen recedes entirely into the periphery. The user ceases to look at the browser; they think directly through the document."
 }
