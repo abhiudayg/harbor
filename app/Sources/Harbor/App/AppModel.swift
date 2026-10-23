@@ -234,23 +234,24 @@ final class AppModel {
         else {
             return
         }
+        _ = try? await store.createSpace(named: "Studio")
         let now = Date()
         let pinned: [(String, String)] = [
+            ("ArXiv: LLM Memory", "https://arxiv.org/abs/2402.19"),
             ("Kernel RFC #412", "https://lwn.net/Articles/412"),
+            ("Figma Design Tokens", "https://figma.com/file/tokens"),
+            ("Linear Core Backlog", "https://linear.app/harbor/core"),
             ("Postgres Indexing", "https://postgresql.org/docs/indexes"),
             ("Stripe API Reference", "https://stripe.com/docs/api"),
-            ("Harbor Design System v3 — Components Library", "https://figma.com/file/harbor-ui"),
-            ("ArXiv: LLM Memory", "https://arxiv.org/abs/2402.19"),
-            ("Linear Core Backlog", "https://linear.app/harbor/core"),
         ]
         let today: [(String, String)] = [
             ("Cognitive Ergonomics & Screen Restraint", "https://harbor.local/reading/cognitive-ergonomics"),
-            ("Distributed Consensus Protocols in Asynchronous Networks — arXiv:2403.1189", "https://arxiv.org/abs/2403.1189"),
-            ("Harbor Design System v3 — Components Library (Copy 2)", "https://figma.com/file/harbor-ui"),
+            ("Distributed Consensus Protocols", "https://example.com/consensus"),
+            ("Typography in Digital Tools", "https://example.com/typography"),
         ]
         let systemsTabs: [(String, String)] = [
-            ("ENG-8022: SQLite WASM synchronization edge case during rapid tab closures", "https://linear.app/harbor/issue/8022"),
-            ("Datadog APM — Live Trace Stream (Production US-East Cluster)", "https://app.datadoghq.com/apm/traces"),
+            ("Vector Math Engine", "https://example.com/vector-math-engine"),
+            ("Local Runtimes", "https://example.com/local-runtimes"),
         ]
         for sample in pinned {
             guard let url = URL(string: sample.1),

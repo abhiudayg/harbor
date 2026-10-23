@@ -3,6 +3,7 @@ import SwiftUI
 
 struct TaskInboxView: View {
     let model: AppModel
+    @Environment(\.harborAccent) private var accent
     @State private var selection: UUID?
 
     private var groups: TaskInboxGroups {
@@ -96,7 +97,7 @@ struct TaskInboxView: View {
                 Spacer()
                 Text("STAGE \(min(task.cursor + 1, task.steps.count)) / \(task.steps.count)")
                     .font(HarborTypography.text(size: 9, weight: .semibold))
-                    .foregroundStyle(HarborColor.primary)
+                    .foregroundStyle(accent.ink)
             }
             Text("\(task.site) · \(Self.stateLabel(task.state))")
                 .font(HarborTypography.text(size: 10))
@@ -154,10 +155,10 @@ struct TaskInboxView: View {
             Text("STAGE \(min(task.cursor + 1, task.steps.count)) / \(task.steps.count)")
                 .font(HarborTypography.text(size: 10, weight: .semibold))
                 .tracking(1)
-                .foregroundStyle(HarborColor.primary)
+                .foregroundStyle(accent.ink)
             ProgressView(value: Double(task.cursor), total: Double(max(task.steps.count, 1)))
                 .progressViewStyle(.linear)
-                .tint(HarborColor.accentTeal)
+                .tint(accent.fill)
             if case .awaitingApproval = task.state {
                 Text("Paused at Step \(task.cursor + 1)")
                     .font(HarborTypography.text(size: 12, weight: .medium))
@@ -205,7 +206,7 @@ struct TaskInboxView: View {
                         .accessibilityIdentifier("inbox-deny")
                     Button("Allow once") { Task { await model.approve(request, scope: .once) } }
                         .buttonStyle(.borderedProminent)
-                        .tint(HarborColor.accentTeal)
+                        .tint(accent.fill)
                         .accessibilityIdentifier("inbox-allow-once")
                 }
                 HStack(spacing: 8) {

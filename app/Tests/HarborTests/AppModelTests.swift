@@ -25,7 +25,7 @@ struct AppModelTests {
 
         await model.start()
 
-        #expect(model.spaces.map(\.name) == ["Research", "Systems"])
+        #expect(model.spaces.map(\.name) == ["Research", "Systems", "Studio"])
         #expect(model.tabs.count == 11)
         #expect(model.tabs.filter(\.isPinned).count == 6)
     }

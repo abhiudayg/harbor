@@ -70,6 +70,7 @@ struct ShellView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if model.isInboxPresented {
             TaskInboxView(model: model)
+                .environment(\.harborAccent, .inbox)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
             HStack(spacing: 0) {
@@ -79,6 +80,7 @@ struct ShellView: View {
                     Divider()
                         .overlay(HarborColor.outlineVariant.opacity(0.3))
                     CompanionPanelView(model: model)
+                        .environment(\.harborAccent, .assistant)
                         .frame(width: 300)
                 }
             }

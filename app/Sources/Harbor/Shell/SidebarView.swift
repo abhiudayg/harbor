@@ -22,7 +22,7 @@ struct SidebarView: View {
             .scrollIndicators(.never)
             footer
         }
-        .glassPanel()
+        .background(Color.white.opacity(0.55))
     }
 
     private var pinnedSection: some View {
@@ -171,14 +171,21 @@ private struct SpacesRow: View {
 
     var body: some View {
         HStack(spacing: 4) {
-            ForEach(Array(spaces.enumerated()), id: \.element.id) { index, space in
-                SpaceButton(name: space.name, isSelected: index == 0)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 4) {
+                    ForEach(Array(spaces.enumerated()), id: \.element.id) { index, space in
+                        SpaceButton(name: space.name, isSelected: index == 0)
+                    }
+                }
+                .fixedSize(horizontal: false, vertical: true)
             }
             Spacer(minLength: 4)
             MaterialIcon("add", size: 13)
                 .foregroundStyle(HarborColor.onSurfaceVariant)
                 .frame(width: 24, height: 24)
         }
+        .padding(4)
+        .background(Color.white.opacity(0.6), in: RoundedRectangle(cornerRadius: 10))
         .padding(.bottom, 6)
         .overlay(alignment: .bottom) {
             Divider().overlay(HarborColor.outlineVariant)
@@ -197,11 +204,13 @@ private struct SpaceButton: View {
                 .frame(width: 8, height: 8)
             Text(name)
                 .font(HarborTypography.text(size: 13, weight: isSelected ? .medium : .regular))
+                .lineLimit(1)
+                .fixedSize()
                 .foregroundStyle(isSelected ? HarborColor.onSurface : HarborColor.onSurfaceVariant)
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 4)
-        .background(isSelected ? HarborColor.surfaceContainer : .clear, in: RoundedRectangle(cornerRadius: 4))
+        .background(isSelected ? Color.white.opacity(0.95) : .clear, in: RoundedRectangle(cornerRadius: 6))
         .overlay(RoundedRectangle(cornerRadius: 4).stroke(isSelected ? HarborColor.outlineVariant : .clear))
     }
 }
@@ -249,8 +258,6 @@ private struct PinnedRow: View {
                     .font(HarborTypography.text(size: 11))
                     .foregroundStyle(HarborColor.outline)
                     .padding(.horizontal, 4)
-                    .background(HarborColor.surfaceContainer, in: RoundedRectangle(cornerRadius: 4))
-                    .overlay(RoundedRectangle(cornerRadius: 4).stroke(HarborColor.outlineVariant))
             }
         }
         .padding(.horizontal, 8)
@@ -288,7 +295,7 @@ private struct TodayRow: View {
         .padding(.leading, 8)
         .padding(.trailing, 8)
         .padding(.vertical, 6)
-        .background(isActive ? HarborColor.surfaceContainer : .clear, in: RoundedRectangle(cornerRadius: 4))
+        .background(isActive ? HarborColor.surfaceLowest : .clear, in: RoundedRectangle(cornerRadius: 8))
         .overlay(alignment: .leading) {
             if isActive {
                 Rectangle()

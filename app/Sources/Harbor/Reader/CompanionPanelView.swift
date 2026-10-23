@@ -3,6 +3,7 @@ import SwiftUI
 
 struct CompanionPanelView: View {
     let model: AppModel
+    @Environment(\.harborAccent) private var accent
     private let article = ReaderArticle.cognitiveErgonomics
 
     @State private var draft = ""
@@ -35,7 +36,7 @@ struct CompanionPanelView: View {
     private var header: some View {
         HStack {
             MaterialIcon("auto_awesome", size: 12)
-                .foregroundStyle(HarborColor.primary)
+                .foregroundStyle(accent.ink)
             Text("Harbor Companion")
                 .font(HarborTypography.text(size: 13, weight: .semibold))
                 .foregroundStyle(HarborColor.onSurface)
@@ -79,7 +80,7 @@ struct CompanionPanelView: View {
                     .buttonStyle(.bordered)
                 Button("Approve once") { Task { await model.approve(request, scope: .once) } }
                     .buttonStyle(.borderedProminent)
-                    .tint(HarborColor.accentTeal)
+                    .tint(accent.fill)
             }
         }
         .padding(10)
@@ -115,7 +116,7 @@ struct CompanionPanelView: View {
             }
             ProgressView(value: progress(task))
                 .progressViewStyle(.linear)
-                .tint(HarborColor.accentTeal)
+                .tint(accent.fill)
             HStack {
                 Text(stepLine(task))
                     .font(HarborTypography.text(size: 11))
@@ -139,10 +140,10 @@ struct CompanionPanelView: View {
             ForEach(article.footnotes, id: \.number) { note in
                 Text("[\(note.number)] \(note.title)")
                     .font(HarborTypography.text(size: 10))
-                    .foregroundStyle(HarborColor.primary)
+                    .foregroundStyle(accent.ink)
                     .padding(.horizontal, 6)
                     .padding(.vertical, 3)
-                    .background(HarborColor.primary.opacity(0.08), in: RoundedRectangle(cornerRadius: 4))
+                    .background(accent.ink.opacity(0.08), in: RoundedRectangle(cornerRadius: 4))
             }
         }
     }
@@ -172,7 +173,7 @@ struct CompanionPanelView: View {
                 .accessibilityIdentifier("assistant-composer")
             Button(action: send) {
                 MaterialIcon("arrow_upward", size: 18)
-                    .foregroundStyle(draft.trimmingCharacters(in: .whitespaces).isEmpty ? HarborColor.outline : HarborColor.accentTeal)
+                    .foregroundStyle(draft.trimmingCharacters(in: .whitespaces).isEmpty ? HarborColor.outline : accent.fill)
             }
             .buttonStyle(.plain)
             .disabled(draft.trimmingCharacters(in: .whitespaces).isEmpty)
@@ -242,10 +243,10 @@ struct CompanionPanelView: View {
                 if let badge {
                     Text(badge)
                         .font(HarborTypography.text(size: 9, weight: .medium))
-                        .foregroundStyle(HarborColor.primary)
+                        .foregroundStyle(accent.ink)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
-                        .background(HarborColor.primary.opacity(0.10), in: RoundedRectangle(cornerRadius: 4))
+                        .background(accent.ink.opacity(0.10), in: RoundedRectangle(cornerRadius: 4))
                 }
             }
             content()
