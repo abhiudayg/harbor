@@ -1,0 +1,52 @@
+# Allowlist: only these entry points count as verification evidence.
+# Run them through .verify/run.sh, which writes logs to .verify/artifacts/.
+
+[[command]]
+name = "doctor"
+run = "sh .verify/doctor.sh"
+working_dir = "."
+
+[[command]]
+name = "build"
+run = "swift build --build-tests"
+working_dir = "app"
+
+[[command]]
+name = "unit"
+run = "swift test --filter HarborCoreTests"
+working_dir = "app"
+
+[[command]]
+name = "integration"
+run = "swift test --filter HarborIntegrationTests"
+working_dir = "app"
+
+[[command]]
+name = "functional"
+run = "swift test --filter HarborFunctionalTests"
+working_dir = "app"
+
+[[command]]
+name = "ui"
+run = "swift test --filter HarborTests"
+working_dir = "app"
+
+[[command]]
+name = "coverage"
+run = "swift test --enable-code-coverage && xcrun llvm-cov report -instr-profile .build/debug/codecov/default.profdata -ignore-filename-regex=Tests -object .build/debug/HarborCoreTests.xctest/Contents/MacOS/HarborCoreTests -object .build/debug/HarborIntegrationTests.xctest/Contents/MacOS/HarborIntegrationTests -object .build/debug/HarborFunctionalTests.xctest/Contents/MacOS/HarborFunctionalTests"
+working_dir = "app"
+
+[[command]]
+name = "hurl"
+run = "sh .verify/hurl.sh"
+working_dir = "."
+
+[[command]]
+name = "features"
+run = "sh .verify/scripts/feature_coverage.sh .verify/features/mcp-transport.md .verify/hurl/mcp-transport.hurl && sh .verify/scripts/feature_coverage.sh .verify/features/mcp-tools.md .verify/hurl/mcp-tools.hurl && sh .verify/scripts/feature_coverage.sh .verify/features/mcp-ownership.md .verify/hurl/mcp-ownership.hurl"
+working_dir = "."
+
+[[command]]
+name = "security"
+run = "sh .verify/security.sh"
+working_dir = "."
