@@ -40,4 +40,5 @@ enum HarborColor {
     static let approvalText = Color(hex: 0x78350F)
     static let approvalDot = Color(hex: 0xF59E0B)
     static let tertiaryGreen = Color(hex: 0x005823)
+    static let error = Color(hex: 0xBA1A1A)
 }

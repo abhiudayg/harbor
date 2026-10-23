@@ -41,9 +41,6 @@ struct ShellView: View {
         .task {
             await model.start()
         }
-        .sheet(isPresented: $model.isInboxPresented) {
-            TaskInboxView(model: model)
-        }
         .sheet(isPresented: $model.isClientsPresented) {
             ClientsSheetView(model: model)
         }
@@ -53,9 +50,9 @@ struct ShellView: View {
         VStack {
             Button("Command Bar") { model.isCommandBarPresented.toggle() }
                 .keyboardShortcut("k", modifiers: .command)
-            Button("Tab Triage") { model.isTriagePresented.toggle() }
+            Button("Tab Triage") { model.isTriagePresented ? model.hideTriage() : model.showTriage() }
                 .keyboardShortcut("a", modifiers: [.command, .shift])
-            Button("Task Inbox") { model.isInboxPresented = true }
+            Button("Task Inbox") { model.showInbox() }
                 .keyboardShortcut("i", modifiers: [.command, .shift])
         }
         .frame(width: 0, height: 0)
@@ -67,6 +64,9 @@ struct ShellView: View {
     private func content(companionVisible: Bool) -> some View {
         if model.isTriagePresented {
             TriageView(model: model)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else if model.isInboxPresented {
+            TaskInboxView(model: model)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
             HStack(spacing: 0) {

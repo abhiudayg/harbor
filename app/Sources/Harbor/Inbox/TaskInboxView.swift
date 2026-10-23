@@ -14,21 +14,8 @@ struct TaskInboxView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            HStack {
-                Text("Task Inbox & Agent Approval")
-                    .font(HarborTypography.editorial(size: 20, weight: .medium))
-                    .foregroundStyle(HarborColor.onSurface)
-                Spacer()
-                Text("\(model.pendingApprovals.count) approval required")
-                    .font(HarborTypography.mono(size: 11))
-                    .foregroundStyle(HarborColor.approvalText)
-                    .accessibilityIdentifier("inbox-approval-count")
-                Button("Done") { model.isInboxPresented = false }
-                    .keyboardShortcut(.cancelAction)
-            }
-            .padding(.horizontal, 20)
-            .frame(height: 52)
+        VStack(alignment: .leading, spacing: 0) {
+            header
             Divider().overlay(HarborColor.outlineVariant.opacity(0.3))
             HStack(spacing: 0) {
                 taskList
@@ -38,17 +25,37 @@ struct TaskInboxView: View {
                     .frame(maxWidth: .infinity, alignment: .topLeading)
             }
         }
-        .frame(width: 900, height: 560)
-        .background(HarborColor.paper)
+        .background(HarborColor.surface)
+    }
+
+    private var header: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("Task Inbox & Agent Pipeline")
+                    .font(HarborTypography.editorial(size: 26, weight: .medium))
+                    .foregroundStyle(HarborColor.onSurface)
+                Spacer()
+                Button("Done") { model.isInboxPresented = false }
+                    .buttonStyle(.bordered)
+                    .keyboardShortcut(.cancelAction)
+            }
+            Text("\(model.pendingApprovals.count) approval required · \(groups.tasks(in: .running).count) running")
+                .font(HarborTypography.mono(size: 11))
+                .foregroundStyle(HarborColor.approvalText)
+                .accessibilityIdentifier("inbox-approval-count")
+        }
+        .padding(.horizontal, 28)
+        .padding(.top, 24)
+        .padding(.bottom, 16)
     }
 
     private var taskList: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: 16) {
                 ForEach(TaskInboxSection.allCases, id: \.self) { section in
                     let rows = groups.tasks(in: section)
                     if !rows.isEmpty {
-                        VStack(alignment: .leading, spacing: 4) {
+                        VStack(alignment: .leading, spacing: 6) {
                             Text("\(section.rawValue) (\(rows.count))".uppercased())
                                 .font(HarborTypography.mono(size: 10, weight: .semibold))
                                 .tracking(1)
@@ -72,83 +79,90 @@ struct TaskInboxView: View {
                         .padding(8)
                 }
             }
-            .padding(12)
+            .padding(14)
         }
         .scrollIndicators(.never)
         .background(HarborColor.surfaceLow)
     }
 
     private func taskRow(_ task: AgentTask) -> some View {
-        VStack(alignment: .leading, spacing: 3) {
-            Text(task.steps.first.map(\.displayName) ?? "Task")
-                .font(HarborTypography.chrome(size: 13, weight: .medium))
-                .foregroundStyle(HarborColor.onSurface)
-                .lineLimit(1)
+        let isSelected = task.id == selected?.id
+        return VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Text(task.steps.first?.displayName ?? "Task")
+                    .font(HarborTypography.chrome(size: 13, weight: .medium))
+                    .foregroundStyle(HarborColor.onSurface)
+                    .lineLimit(1)
+                Spacer()
+                Text("STAGE \(min(task.cursor + 1, task.steps.count)) / \(task.steps.count)")
+                    .font(HarborTypography.mono(size: 9, weight: .semibold))
+                    .foregroundStyle(HarborColor.primary)
+            }
             Text("\(task.site) · \(Self.stateLabel(task.state))")
                 .font(HarborTypography.mono(size: 10))
                 .foregroundStyle(HarborColor.onSurfaceVariant)
                 .lineLimit(1)
         }
         .padding(.horizontal, 10)
-        .padding(.vertical, 8)
+        .padding(.vertical, 9)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(task.id == selected?.id ? HarborColor.surfaceLowest : .clear, in: RoundedRectangle(cornerRadius: 8))
+        .background(isSelected ? HarborColor.surfaceLowest : .clear, in: RoundedRectangle(cornerRadius: 8))
+        .overlay(RoundedRectangle(cornerRadius: 8).stroke(isSelected ? HarborColor.outlineVariant.opacity(0.5) : .clear))
     }
 
     @ViewBuilder
     private var detail: some View {
         if let task = selected {
-            VStack(alignment: .leading, spacing: 14) {
-                Text(task.steps.first.map(\.displayName) ?? "Task")
-                    .font(HarborTypography.editorial(size: 22, weight: .medium))
-                    .foregroundStyle(HarborColor.onSurface)
-                Text("Domain: \(task.site)")
-                    .font(HarborTypography.mono(size: 12))
-                    .foregroundStyle(HarborColor.onSurfaceVariant)
-                Text("STAGE \(min(task.cursor + 1, task.steps.count)) / \(task.steps.count)")
-                    .font(HarborTypography.mono(size: 10, weight: .semibold))
-                    .tracking(1)
-                    .foregroundStyle(HarborColor.primary)
-                if case .awaitingApproval = task.state {
-                    Text("Paused at Step \(task.cursor + 1)")
-                        .font(HarborTypography.chrome(size: 12, weight: .medium))
-                        .foregroundStyle(HarborColor.approvalText)
-                }
-                Text("State: \(Self.stateLabel(task.state))")
-                    .font(HarborTypography.chrome(size: 12))
-                    .foregroundStyle(HarborColor.onSurface)
-                scopeSection
-                if !task.state.isTerminal {
-                    Button("Stop & abort") { Task { await model.stop(task) } }
-                        .buttonStyle(.bordered)
-                        .tint(HarborColor.approvalText)
-                        .accessibilityIdentifier("inbox-stop")
-                }
-                if case .awaitingApproval = task.state, let request = pendingRequest(for: task) {
-                    approvalCard(request)
-                }
-                if !task.outputs.isEmpty {
-                    Text("OUTPUT (UNTRUSTED PAGE DATA)")
-                        .font(HarborTypography.mono(size: 10, weight: .semibold))
-                        .tracking(1)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    Text(task.steps.first?.displayName ?? "Task")
+                        .font(HarborTypography.editorial(size: 22, weight: .medium))
+                        .foregroundStyle(HarborColor.onSurface)
+                    Text("Domain: \(task.site)")
+                        .font(HarborTypography.mono(size: 12))
                         .foregroundStyle(HarborColor.onSurfaceVariant)
-                    ForEach(Array(task.outputs.enumerated()), id: \.offset) { _, output in
-                        Text(output.value)
-                            .font(HarborTypography.chrome(size: 12))
-                            .foregroundStyle(HarborColor.onSurface)
-                            .padding(10)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .background(HarborColor.surfaceLowest, in: RoundedRectangle(cornerRadius: 8))
+                    stageLine(task)
+                    Text("State: \(Self.stateLabel(task.state))")
+                        .font(HarborTypography.chrome(size: 12))
+                        .foregroundStyle(HarborColor.onSurface)
+                    if !task.state.isTerminal {
+                        Button("Stop & abort") { Task { await model.stop(task) } }
+                            .buttonStyle(.bordered)
+                            .tint(HarborColor.approvalText)
+                            .accessibilityIdentifier("inbox-stop")
                     }
+                    if case .awaitingApproval = task.state, let request = pendingRequest(for: task) {
+                        approvalCard(request)
+                    }
+                    scopeSection
+                    outputSection(task)
                 }
-                Spacer()
+                .padding(24)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .padding(20)
+            .scrollIndicators(.never)
         } else {
             Text("Select a task")
                 .font(HarborTypography.chrome(size: 13))
                 .foregroundStyle(HarborColor.onSurfaceVariant)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+    }
+
+    private func stageLine(_ task: AgentTask) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("STAGE \(min(task.cursor + 1, task.steps.count)) / \(task.steps.count)")
+                .font(HarborTypography.mono(size: 10, weight: .semibold))
+                .tracking(1)
+                .foregroundStyle(HarborColor.primary)
+            ProgressView(value: Double(task.cursor), total: Double(max(task.steps.count, 1)))
+                .progressViewStyle(.linear)
+                .tint(HarborColor.accentTeal)
+            if case .awaitingApproval = task.state {
+                Text("Paused at Step \(task.cursor + 1)")
+                    .font(HarborTypography.chrome(size: 12, weight: .medium))
+                    .foregroundStyle(HarborColor.approvalText)
+            }
         }
     }
 
@@ -173,25 +187,57 @@ struct TaskInboxView: View {
     }
 
     private func approvalCard(_ request: ApprovalRequest) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("\(Self.actionLabel(request.action)) on \(request.site)")
-                .font(HarborTypography.chrome(size: 13, weight: .semibold))
+        VStack(alignment: .leading, spacing: 12) {
+            Text("AGENT ACTION APPROVAL")
+                .font(HarborTypography.mono(size: 10, weight: .semibold))
+                .tracking(1)
                 .foregroundStyle(HarborColor.approvalText)
+            Text("\(Self.actionLabel(request.action)) on \(request.site)")
+                .font(HarborTypography.editorial(size: 17, weight: .medium))
+                .foregroundStyle(HarborColor.onSurface)
             Text("This step is held until you decide. Nothing runs before you approve it.")
                 .font(HarborTypography.chrome(size: 12))
                 .foregroundStyle(HarborColor.onSurfaceVariant)
-            HStack {
-                Button("Deny") { Task { await model.deny(request) } }
-                    .accessibilityIdentifier("inbox-deny")
-                Button("Allow once") { Task { await model.approve(request, scope: .once) } }
-                    .accessibilityIdentifier("inbox-allow-once")
-                Button("Allow for this site") { Task { await model.approve(request, scope: .site) } }
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 8) {
+                    Button("Deny") { Task { await model.deny(request) } }
+                        .buttonStyle(.bordered)
+                        .accessibilityIdentifier("inbox-deny")
+                    Button("Allow once") { Task { await model.approve(request, scope: .once) } }
+                        .buttonStyle(.borderedProminent)
+                        .tint(HarborColor.accentTeal)
+                        .accessibilityIdentifier("inbox-allow-once")
+                }
+                HStack(spacing: 8) {
+                    Button("Allow for this task") { Task { await model.approve(request, scope: .task) } }
+                        .buttonStyle(.bordered)
+                    Button("Allow for this site") { Task { await model.approve(request, scope: .site) } }
+                        .buttonStyle(.bordered)
+                }
             }
-            .buttonStyle(.bordered)
         }
-        .padding(14)
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .background(HarborColor.approvalFill, in: RoundedRectangle(cornerRadius: 10))
         .overlay(RoundedRectangle(cornerRadius: 10).stroke(HarborColor.approvalBorder))
+    }
+
+    @ViewBuilder
+    private func outputSection(_ task: AgentTask) -> some View {
+        if !task.outputs.isEmpty {
+            Text("OUTPUT (UNTRUSTED PAGE DATA)")
+                .font(HarborTypography.mono(size: 10, weight: .semibold))
+                .tracking(1)
+                .foregroundStyle(HarborColor.onSurfaceVariant)
+            ForEach(Array(task.outputs.enumerated()), id: \.offset) { _, output in
+                Text(output.value)
+                    .font(HarborTypography.chrome(size: 12))
+                    .foregroundStyle(HarborColor.onSurface)
+                    .padding(10)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(HarborColor.surfaceLowest, in: RoundedRectangle(cornerRadius: 8))
+            }
+        }
     }
 
     private func pendingRequest(for task: AgentTask) -> ApprovalRequest? {
@@ -200,7 +246,6 @@ struct TaskInboxView: View {
         }
         return model.pendingApprovals.first { $0.id == id }
     }
-
 
     private static func actionLabel(_ action: ActionClass) -> String {
         switch action {

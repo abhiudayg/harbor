@@ -26,7 +26,7 @@ struct AppModelTests {
         await model.start()
 
         #expect(model.spaces.map(\.name) == ["Research", "Systems"])
-        #expect(model.tabs.count == 10)
+        #expect(model.tabs.count == 11)
         #expect(model.tabs.filter(\.isPinned).count == 6)
     }
 
@@ -37,7 +37,7 @@ struct AppModelTests {
         await model.start()
         await model.start()
 
-        #expect(model.tabs.count == 10)
+        #expect(model.tabs.count == 11)
     }
 
     @Test("a pending approval appears in the model and approving it completes the held task")
@@ -93,8 +93,22 @@ struct AppModelTests {
 
         await model.close(tab)
 
-        #expect(model.tabs.count == 9)
+        #expect(model.tabs.count == 10)
         #expect(model.tabs.contains { $0.id == tab.id } == false)
+    }
+
+    @Test("triage and the inbox replace each other in the content area")
+    func contentViewsReplaceEachOther() {
+        let (model, _, _) = Self.makeModel()
+
+        model.showTriage()
+        #expect(model.isTriagePresented && !model.isInboxPresented)
+
+        model.showInbox()
+        #expect(!model.isTriagePresented && model.isInboxPresented)
+
+        model.showTriage()
+        #expect(model.isTriagePresented && !model.isInboxPresented)
     }
 
     @Test("archiving stale tabs leaves the seeded tabs open because they are fresh")

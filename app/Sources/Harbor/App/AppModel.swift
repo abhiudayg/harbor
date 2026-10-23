@@ -151,6 +151,20 @@ final class AppModel {
         await refresh()
     }
 
+    func showTriage() {
+        isInboxPresented = false
+        isTriagePresented = true
+    }
+
+    func hideTriage() {
+        isTriagePresented = false
+    }
+
+    func showInbox() {
+        isTriagePresented = false
+        isInboxPresented = true
+    }
+
     func archiveStale() async {
         _ = await store.archiveStaleTabs(now: Date())
         await refresh()
@@ -212,8 +226,10 @@ final class AppModel {
             }
             _ = try? await store.openTab(url: url, title: sample.0, in: research.id, at: Date())
         }
-        if let url = URL(string: "https://example.com/vector-math") {
-            _ = try? await store.openTab(url: url, title: "Vector Math Engine", in: systems.id, at: Date())
+        for title in ["Vector Math Engine", "Local Runtimes"] {
+            if let url = URL(string: "https://example.com/\(title.lowercased().replacingOccurrences(of: " ", with: "-"))") {
+                _ = try? await store.openTab(url: url, title: title, in: systems.id, at: Date())
+            }
         }
     }
 }
