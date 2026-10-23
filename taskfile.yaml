@@ -1,0 +1,110 @@
+version: '3'
+
+tasks:
+  default:
+    desc: Build and package the Harbor application
+    cmds:
+      - task: bundle
+
+  build:
+    desc: Build Harbor executable
+    dir: app
+    cmds:
+      - swift build --product Harbor
+
+  build-tests:
+    desc: Build all test targets
+    dir: app
+    cmds:
+      - swift build --build-tests
+
+  bundle:
+    desc: Build and package Harbor.app macOS bundle
+    deps: [build]
+    dir: app
+    vars:
+      APP: .build/Harbor.app
+      BIN: .build/Harbor.app/Contents/MacOS/Harbor
+    cmds:
+      - mkdir -p {{.APP}}/Contents/MacOS
+      - cp .build/debug/Harbor {{.BIN}}
+      - rm -rf {{.APP}}/Contents/Resources
+      - mkdir -p {{.APP}}/Contents/Resources
+      - cp -R .build/debug/Harbor_Harbor.bundle {{.APP}}/Contents/Resources/
+      - |
+        cat << 'EOF' > {{.APP}}/Contents/Info.plist
+        <?xml version="1.0" encoding="UTF-8"?>
+        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+        <plist version="1.0">
+        <dict>
+            <key>CFBundleName</key>
+            <string>Harbor</string>
+            <key>CFBundleIdentifier</key>
+            <string>dev.harbor.browser</string>
+            <key>CFBundleExecutable</key>
+            <string>Harbor</string>
+            <key>CFBundlePackageType</key>
+            <string>APPL</string>
+            <key>CFBundleShortVersionString</key>
+            <string>0.1.0</string>
+            <key>CFBundleVersion</key>
+            <string>1</string>
+            <key>LSMinimumSystemVersion</key>
+            <string>14.0</string>
+            <key>NSPrincipalClass</key>
+            <string>NSApplication</string>
+            <key>NSHighResolutionCapable</key>
+            <true/>
+        </dict>
+        </plist>
+        EOF
+      - codesign --force --sign - {{.APP}}
+
+  run:
+    desc: Launch the Harbor application bundle
+    deps: [bundle]
+    cmds:
+      - osascript -e 'tell application id "dev.harbor.browser" to quit' || true
+      - sleep 1
+      - open app/.build/Harbor.app
+
+  test:
+    desc: Run all tests
+    dir: app
+    cmds:
+      - swift test
+
+  test-unit:
+    desc: Run unit tests
+    dir: app
+    cmds:
+      - swift test --filter HarborCoreTests
+
+  test-integration:
+    desc: Run integration tests
+    dir: app
+    cmds:
+      - swift test --filter HarborIntegrationTests
+
+  test-functional:
+    desc: Run functional tests
+    dir: app
+    cmds:
+      - swift test --filter HarborFunctionalTests
+
+  test-ui:
+    desc: Run UI tests
+    dir: app
+    cmds:
+      - swift test --filter HarborTests
+
+  verify:
+    desc: Run verification suite
+    cmds:
+      - sh .verify/run.sh {{.CLI_ARGS | default "all"}}
+
+  clean:
+    desc: Clean build artifacts
+    dir: app
+    cmds:
+      - swift package clean

@@ -1,5 +1,6 @@
 **/.agent-brain-id
 docs/prd/
+designs/
 worktrees/
 app/.build
 .build/

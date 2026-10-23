@@ -13,21 +13,7 @@ if pgrep -f "Harbor.app/Contents/MacOS/Harbor" >/dev/null 2>&1; then
     exit 1
 fi
 
-(cd "$ROOT/app" && swift build --product Harbor) >"$OUT/build.log" 2>&1 || { echo "FAIL build"; exit 1; }
-mkdir -p "$APP/Contents/MacOS"
-cp "$ROOT/app/.build/debug/Harbor" "$BIN"
-printf '%s\n' '<?xml version="1.0" encoding="UTF-8"?>' '<plist version="1.0"><dict>' \
-    '<key>CFBundleName</key><string>Harbor</string>' \
-    '<key>CFBundleIdentifier</key><string>dev.harbor.browser</string>' \
-    '<key>CFBundleExecutable</key><string>Harbor</string>' \
-    '<key>CFBundlePackageType</key><string>APPL</string>' \
-    '<key>CFBundleShortVersionString</key><string>0.1.0</string>' \
-    '<key>CFBundleVersion</key><string>1</string>' \
-    '<key>LSMinimumSystemVersion</key><string>14.0</string>' \
-    '<key>NSPrincipalClass</key><string>NSApplication</string>' \
-    '<key>NSHighResolutionCapable</key><true/>' \
-    '</dict></plist>' >"$APP/Contents/Info.plist"
-codesign --force --sign - "$APP" >"$OUT/codesign.log" 2>&1 || { echo "FAIL codesign of the test bundle; see $OUT/codesign.log"; exit 1; }
+(cd "$ROOT" && task bundle) >"$OUT/build.log" 2>&1 || { echo "FAIL bundle; see $OUT/build.log"; exit 1; }
 
 "$BIN" >"$OUT/harbor.log" 2>&1 &
 APP_PID=$!
@@ -71,7 +57,7 @@ expect_text() {
 expect_text "Cognitive Ergonomics"
 expect_text "PINNED"
 expect_text "Research"
-expect_text "TAB GROUPS"
+expect_text "WORKSPACES"
 expect_text "harbor://reading"
 expect_text "SPACES"
 expect_text "Systems"

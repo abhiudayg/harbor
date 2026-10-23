@@ -13,9 +13,14 @@ struct HarborApp: App {
     @NSApplicationDelegateAdaptor(HarborAppDelegate.self) private var delegate
     @State private var model = AppModel()
 
+    init() {
+        HarborFonts.register()
+    }
+
     var body: some Scene {
         WindowGroup {
             ShellView(model: model)
+                .preferredColorScheme(.light)
         }
         .windowStyle(.hiddenTitleBar)
         .defaultSize(width: 1440, height: 900)

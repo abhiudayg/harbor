@@ -14,7 +14,8 @@ let package = Package(
         .executableTarget(
             name: "Harbor",
             dependencies: ["HarborCore"],
-            path: "Sources/Harbor"
+            path: "Sources/Harbor",
+            resources: [.process("Resources")]
         ),
         .executableTarget(
             name: "HarborFixtureServer",
