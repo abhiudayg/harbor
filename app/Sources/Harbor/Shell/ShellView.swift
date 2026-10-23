@@ -74,7 +74,7 @@ struct ShellView: View {
                 if companionVisible {
                     Divider()
                         .overlay(HarborColor.outlineVariant.opacity(0.3))
-                    CompanionPanelView()
+                    CompanionPanelView(model: model)
                         .frame(width: 300)
                 }
             }
