@@ -22,7 +22,12 @@ struct SidebarView: View {
                         }
                     }
                     SidebarSectionHeader(title: "Tab Groups")
-                    CollectionFolderRow(title: "Systems", count: 2, children: ["Vector Math Engine", "Local Runtimes"])
+                    ForEach(model.spaces.dropFirst(), id: \.id) { space in
+                        let titles = model.tabs.filter { $0.spaceID == space.id && $0.state != .archived }.map(\.title)
+                        if !titles.isEmpty {
+                            CollectionFolderRow(title: space.name, count: titles.count, children: titles)
+                        }
+                    }
                     ArchiveRow(count: archivedCount)
                 }
                 .padding(.horizontal, 8)

@@ -37,6 +37,7 @@ struct CommandBarView: View {
                     .textFieldStyle(.plain)
                     .font(HarborTypography.chrome(size: 15))
                     .foregroundStyle(HarborColor.onSurface)
+                    .onSubmit(runFirstAction)
                     .accessibilityIdentifier("command-bar-field")
                 Text("esc")
                     .font(HarborTypography.mono(size: 10))
@@ -95,7 +96,6 @@ struct CommandBarView: View {
             .frame(maxHeight: 420)
             Divider().overlay(HarborColor.outlineVariant.opacity(0.4))
             HStack(spacing: 14) {
-                footerHint("Tab", "navigate")
                 footerHint("↵", "select")
                 footerHint("Esc", "close")
                 Spacer()
@@ -164,12 +164,19 @@ struct CommandBarView: View {
         }
     }
 
+    private func runFirstAction() {
+        guard let first = results.actions.first else {
+            return
+        }
+        run(first.id)
+    }
+
     private func run(_ action: String) {
         model.isCommandBarPresented = false
         switch action {
-        case "triage": model.isTriagePresented = true
+        case "triage": model.showTriage()
         case "clients": model.isClientsPresented = true
-        default: model.isInboxPresented = true
+        default: model.showInbox()
         }
     }
 }
